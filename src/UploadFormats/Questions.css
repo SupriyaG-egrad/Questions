@@ -5,9 +5,11 @@ body {
     color: #333;
     line-height: 1.6;
   }
-  
+  html{
+    overflow: hidden;
+  }
   /* Container for sidebar and main content */
-  .container {
+  .containerbox {
     display: flex;
     min-height: 100vh;
     transition: margin-left 0.3s;
@@ -82,14 +84,17 @@ body {
   }
   
   .sidebar-toggle {
-    font-size: 30px;
-    position: fixed;
-    top: 20px;
-    left: 20px;
+    font-size: 16px;
     background: none;
     border: none;
-    color: #333;
+    color: #ebdcdc;
     cursor: pointer;
+    position: fixed;
+    top: 19px;
+    right: 52px;
+    z-index: 1100;
+    background-color: skyblue;
+
   }
   
   /* Checkbox group */
@@ -121,21 +126,36 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1000;
-  }
-  
-  .preview-modal iframe {
+}
+
+.preview-modal .modal-content {
     background-color: white;
     border: 1px solid #ccc;
     margin-bottom: 10px;
-  }
-  
-  .preview-modal button {
+    width: 100%;
+    max-width: 800px;
+    padding: 20px;
+}
+
+.preview-modal button {
     margin: 5px;
     padding: 10px;
     cursor: pointer;
+}
+
+.document-container {
+    background-color: white;
+    padding: 20px;
+    border: 1px solid #ccc;
+    max-height: 400px;
+    overflow-y: auto;
+}
+  
+  .modal-dialog.modal-lg{
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
-  
-  
   .checkbox-group input[type="checkbox"] {
     appearance: none;
     position: absolute;
@@ -178,7 +198,10 @@ body {
     flex: 1;
     padding: 30px;
     background-color: #f9f9f9;
-    margin-left: 300px; /* Ensures space for the sidebar */
+    margin-left: 300px;
+    border: 1px solid white;
+
+    box-shadow: rgba(0, 0, 0, 0.07) 0px 1px 1px, rgba(0, 0, 0, 0.07) 0px 2px 2px, rgba(0, 0, 0, 0.07) 0px 4px 4px, rgba(0, 0, 0, 0.07) 0px 8px 8px, rgba(0, 0, 0, 0.07) 0px 16px 16px;
   }
   
   .main-content h1 {
@@ -511,7 +534,9 @@ body {
     .sidebar-toggle {
         display: block;
     }
-  
+      html{
+        overflow: scroll;
+      }
     .main-content {
         margin-left: 0;
         padding: 15px;
@@ -559,7 +584,12 @@ body {
         position: relative;
         transform: translateX(-100%);
     }
-  
+    button.save-button.mcq-container {
+      width: 81%;
+  }
+  html{
+    overflow: scroll;
+  }
     .main-content {
         margin-left: 0;
         padding: 15px;
@@ -568,7 +598,9 @@ body {
     .sidebar.show {
         transform: translateX(0);
     }
-  
+    .sidebar.open {
+      transform: translateX(0);
+  }
     .sidebar select {
         font-size: 14px;
         padding: 8px;

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useContext } from 'react';
 import './Questions.css'; // Import the CSS file
 import ParagraphCreation from "./ParagraphCreation";
-import React, { useContext } from 'react';
 import { QuestionsContext } from './QuestionsContext';
+
 const Assertion = ({
   Paragraphs,
   setParagraphs,
@@ -15,41 +15,57 @@ const Assertion = ({
   includeParagraph,
   includeSolution,
 }) => {
-   const {questionIndex,setQuestionIndex}=useContext(QuestionsContext)
   const [clickedBox, setClickedBox] = useState(null); // Track the clicked box
-  const { Questions, setQuestions,questionCount } = useContext(QuestionsContext)
+  const { assertionQuestions, setAssertionQuestions, Questions, setQuestions, questionCount } = useContext(QuestionsContext);
+
   const handleClickBox = (boxName) => {
     setClickedBox(boxName);
   };
+
+  const handlePasteImage = (e, type, index, optionIndex = null) => {
+    console.log("Paste event triggered");
+    const clipboardItems = e.clipboardData.items;
+    for (let i = 0; i < clipboardItems.length; i++) {
+      if (clipboardItems[i].type.startsWith("image/")) {
+        const file = clipboardItems[i].getAsFile();
+        const reader = new FileReader();
+        reader.onload = () => {
+          console.log("Image loaded from clipboard");
+          setAssertionQuestions((prevQuestions) => {
+            const updatedQuestions = [...prevQuestions];
+            if (type === "assertion") {
+              updatedQuestions[index].assertionImage = reader.result;
+            } else if (type === "reason") {
+              updatedQuestions[index].reasonImage = reader.result;
+            } else if (type === "option") {
+              updatedQuestions[index].options[optionIndex].image = reader.result;
+            } else if (type === "solution") {
+              updatedQuestions[index].solutionImage = reader.result;
+            }
+            return updatedQuestions;
+          });
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  };
+
   return (
     <div className="mcq-container">
       <div className="question-wrapper">
-        {Questions.length > 0 ? (
-                Questions.map((question, index) => (
-                  <div key={index} className="question-item">
-               <h3>Question {questionCount} </h3>
+        {assertionQuestions.length > 0 ? (
+          assertionQuestions.map((question, index) => (
+            <div key={index} className="question-item">
+              <h3>Question {index + 1}</h3>
+
               {/* Assertion Image Section */}
               <div className="question-image-container">
                 <h3>Paste Image for Assertion</h3>
                 <div
                   className={`option box ${clickedBox === `assertion-${index}` ? 'clicked' : ''}`}
                   onClick={() => handleClickBox(`assertion-${index}`)} // Handle the click event
-                  onPaste={(e) => {
-                    const clipboardItems = e.clipboardData.items;
-                    for (let i = 0; i < clipboardItems.length; i++) {
-                      if (clipboardItems[i].type.startsWith("image/")) {
-                        const file = clipboardItems[i].getAsFile();
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          const updatedQuestions = [...Questions];
-                          updatedQuestions[index].assertionImage = reader.result;
-                          setQuestions(updatedQuestions)
-                        };
-                        reader.readAsDataURL(file);
-                        break;
-                      }
-                    }
-                  }}
+                  onPaste={(e) => handlePasteImage(e, "assertion", index)}
                 >
                   {question.assertionImage ? (
                     <>
@@ -66,7 +82,7 @@ const Assertion = ({
                       </button>
                     </>
                   ) : (
-                    "Paste your assertion image here (ctrl+v)"
+                    "Paste your assertion image here (Ctrl+V)"
                   )}
                 </div>
               </div>
@@ -77,22 +93,7 @@ const Assertion = ({
                 <div
                   className={`option box ${clickedBox === `reason-${index}` ? 'clicked' : ''}`}
                   onClick={() => handleClickBox(`reason-${index}`)} // Handle the click event
-                  onPaste={(e) => {
-                    const clipboardItems = e.clipboardData.items;
-                    for (let i = 0; i < clipboardItems.length; i++) {
-                      if (clipboardItems[i].type.startsWith("image/")) {
-                        const file = clipboardItems[i].getAsFile();
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          const updatedQuestions = [...Questions];
-                          updatedQuestions[index].reasonImage = reader.result;
-                        setQuestions(updatedQuestions)
-                        };
-                        reader.readAsDataURL(file);
-                        break;
-                      }
-                    }
-                  }}
+                  onPaste={(e) => handlePasteImage(e, "reason", index)}
                 >
                   {question.reasonImage ? (
                     <>
@@ -109,13 +110,12 @@ const Assertion = ({
                       </button>
                     </>
                   ) : (
-                    "Paste your reason image here (ctrl+v)"
+                    "Paste your reason image here (Ctrl+V)"
                   )}
                 </div>
               </div>
-              {/* Paragraph Section */}
-              {includeParagraph && <ParagraphCreation Paragraphs={Paragraphs} setParagraphs={setParagraphs} />}
-              {/*Option section*/}
+
+              {/* Option Section */}
               <h4>Options</h4>
               {question.options.map((option, optionIndex) => (
                 <div key={optionIndex} className="option-item">
@@ -124,7 +124,7 @@ const Assertion = ({
                       <input
                         name="radio"
                         type="radio"
-                        value={option.isCorrect}
+          
                         onChange={(e) => handleAnswerChange(index, optionIndex, e.target.checked)}
                         className="option-box"
                       />
@@ -133,7 +133,7 @@ const Assertion = ({
                     <div
                       className={`option-box ${clickedBox === `option-${index}-${optionIndex}` ? 'clicked' : ''}`}
                       onClick={() => handleClickBox(`option-${index}-${optionIndex}`)} // Handle the click event
-                      onPaste={(e) => handleOptionPaste(e, index, optionIndex)}
+                      onPaste={(e) => handlePasteImage(e, "option", index, optionIndex)}
                     >
                       {option.image ? (
                         <>
@@ -150,7 +150,7 @@ const Assertion = ({
                           </button>
                         </>
                       ) : (
-                        "Paste your option image here (ctrl+v)"
+                        "Paste your option image here (Ctrl+V)"
                       )}
                     </div>
                   </div>
@@ -163,7 +163,7 @@ const Assertion = ({
                 <div
                   className={`option-box ${clickedBox === `solution-${index}` ? 'clicked' : ''}`}
                   onClick={() => handleClickBox(`solution-${index}`)} // Handle the click event
-                  onPaste={(e) => handlePaste(e, index)}
+                  onPaste={(e) => handlePasteImage(e, "solution", index)}
                 >
                   {question.solutionImage ? (
                     <>
@@ -180,42 +180,11 @@ const Assertion = ({
                       </button>
                     </>
                   ) : (
-                    "Paste your solution image here (ctrl+v)"
+                    "Paste your solution image here (Ctrl+V)"
                   )}
                 </div>
               </div>
-              {includeSolution && (
-                <div className="solution-section">
-                  <strong>Solution:</strong>
-                  <div
-                    className={`option-box ${clickedBox === `solution-${index}` ? 'clicked' : ''}`}
-                    onClick={() => handleClickBox(`solution-${index}`)} // Handle the click event
-                    onPaste={(e) => handlePaste(e, index)}
-                  >
-                    {question.solutionImage ? (
-                      <>
-                        <img
-                          src={question.solutionImage}
-                          alt={`Solution ${index + 1}`}
-                        />
-                        <button
-                          onClick={() => handleRemoveImage(index, "solution")}
-                          className="remove-button"
-                        >
-                          Remove
-                        </button>
-                      </>
-                    ) : (
-                      <div
-                        className="paste-container"
-                        onPaste={(e) => handlePaste(e, index, "solution")}
-                      >
-                        Paste solution image (ctrl+v)
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+
               {/* Answer Section */}
               <div className="answer-container">
                 <h3>Selected Answer</h3>
@@ -227,25 +196,20 @@ const Assertion = ({
                   className="answer-input"
                 />
               </div>
-              <div>
-               
 
+              <div>
                 <button
                   onClick={() => removeQuestion(index)}
                   className="remove-button"
                 >
                   Remove Previous Question
                 </button>
-               
-
               </div>
             </div>
           ))
         ) : (
           <p>Loading questions...</p>
         )}
-
-
       </div>
     </div>
   );

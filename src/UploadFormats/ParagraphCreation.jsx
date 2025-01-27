@@ -127,7 +127,6 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
                 <div className="question-wrapper">
                     {/* Paragraph Image Section */}
                     <div className="paragraph-image-container">
-                        <h3>Paragraph Question{questionCount}</h3>
                         <h3>Paste Image for Paragraph</h3>
                         <div
                             className={`option box ${clickedBox === 'paragraph-image' ? 'clicked' : ''}`}
@@ -183,7 +182,7 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
                     </div>
 
                     {/* Questions Section */}
-                    {Paragraphs.map((question, index) => (
+                    { numberOfQuestions>0 && Paragraphs.map((question, index) => (
                         <div key={index} className="question-section">
                             <h3>Question {index + 1}</h3>
 

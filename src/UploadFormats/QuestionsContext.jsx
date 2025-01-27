@@ -1,57 +1,45 @@
-import { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
+import { use } from 'react';
 
-const QuestionsContext = createContext();
+export const QuestionsContext = createContext();
 
-const QuestionsProvider = ({ children }) => {
-  const [selectedQuestionType, setSelectedQuestionType] = useState("Mcq");
-  const [addOptionE, setAddOptionE] = useState(false);
+export const QuestionsProvider = ({ children }) => {
+  const [mcqQuestions, setMcqQuestions] = useState([]);
+  const [msqQuestions, setMsqQuestions] = useState([]);
+  const [nitQuestions, setNitQuestions] = useState([]);
+  const [trueQuestions, setTrueQuestions] = useState([]);
+  const [assertionQuestions, setAssertionQuestions] = useState([]);
+  const [Questions, setQuestions] = useState([]);
   const [positiveMarks, setPositiveMarks] = useState(0);
   const [negativeMarks, setNegativeMarks] = useState(0);
-  const [Paragraphs, setParagraphs] = useState([]);
-  const [questionCount, setQuestionCount] = useState(1); // New state variable
+  const [selectedQuestionType, setSelectedQuestionType] = useState("Mcq");
+  const [addOptionE, setAddOptionE] = useState(false);
 
-  const [Questions, setQuestions] = useState([
-    {
-      assertionImage: null,
-      reasonImage: null,
-      questionImage: null,
-      answer: "",
-      solutionImage: null,
-      options: [
-        { text: "", image: null },
-        { text: "", image: null },
-        { text: "", image: null },
-        { text: "", image: null },
-      ],
-      type: selectedQuestionType || "",
-      marks: `${positiveMarks || 0}-${negativeMarks || 0}`,
-    }
-  ]);
-
-  // Update Questions whenever questionIndex, selectedQuestionType, or marks change
- 
+  useEffect(() => {
+    setQuestions([
+      ...mcqQuestions,
+      ...msqQuestions,
+      ...nitQuestions,
+      ...trueQuestions,
+      ...assertionQuestions
+    ]);
+  }, [mcqQuestions, msqQuestions, nitQuestions, trueQuestions, assertionQuestions]);
+   const [Paragraphs,setParagraphs]=useState([])
   return (
-    <QuestionsContext.Provider
-      value={{
-        Questions,
-        setQuestions,
-        selectedQuestionType,
-        setSelectedQuestionType,
-        positiveMarks,
-        setPositiveMarks,
-        negativeMarks,
-        setNegativeMarks,
-        addOptionE,
-        setAddOptionE,
-        Paragraphs,
-        setParagraphs,
-        questionCount,
-        setQuestionCount
-      }}
-    >
+    <QuestionsContext.Provider value={{
+      Paragraphs,setParagraphs,
+      mcqQuestions, setMcqQuestions,
+      msqQuestions, setMsqQuestions,
+      nitQuestions, setNitQuestions,
+      trueQuestions, setTrueQuestions,
+      assertionQuestions, setAssertionQuestions,
+      Questions, setQuestions,
+      positiveMarks, setPositiveMarks,
+      negativeMarks, setNegativeMarks,
+      selectedQuestionType, setSelectedQuestionType,
+      addOptionE, setAddOptionE
+    }}>
       {children}
     </QuestionsContext.Provider>
   );
 };
-
-export { QuestionsProvider, QuestionsContext };
