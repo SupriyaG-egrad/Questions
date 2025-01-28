@@ -6,7 +6,6 @@ const MSQ = ({
   handleOptionPaste,
   addNewQuestion,
   handlePaste,
-  handleAnswerChange,
   handleRemoveImage,
   removeQuestion,
   includeSolution,
@@ -21,7 +20,27 @@ const MSQ = ({
       setClickedBox(boxName);
     }
   };
-
+  const handleAnswerChange = (index, optionIndex, isChecked) => {
+    setMsqQuestions(prev => {
+      const updated = [...prev];
+      if (!Array.isArray(updated[index].answer)) {
+        updated[index].answer = [];
+      }
+      if (isChecked) {
+        if (!updated[index].answer.includes(String.fromCharCode(65 + optionIndex))) {
+          if (updated[index].answer.length < 2) {
+            updated[index].answer.push(String.fromCharCode(65 + optionIndex));
+          } else {
+            alert("You can only select two options.");
+            return ;
+          }
+        }
+      } else {
+        updated[index].answer = updated[index].answer.filter(answer => answer !== String.fromCharCode(65 + optionIndex));
+      }
+      return updated;
+    });
+  };
   const renderQuestions = () => {
     return msqQuestions.map((question, index) => (
       <div key={index} className="question-item">

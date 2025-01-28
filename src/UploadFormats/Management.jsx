@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext,useEffect } from 'react';
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, ImageRun, TextRun } from "docx";
 import MCQ from "./Mcq";
@@ -12,8 +12,29 @@ import Instruction from './Instruction.jsx';
 import { QuestionsContext } from './QuestionsContext.jsx';
 import PreviewModal from './PreviewModal.jsx';
 const Management = () => {
+  useEffect(() => {
+    const checkScreenWidth = () => {
+      const screenWidth = window.innerWidth;
+      if (screenWidth >= 768 && screenWidth <= 1024) {
+        alert('This website is not available on tablet view due to the size of the images decreasing.');
+        return
+      }
+    };
+
+   
+    checkScreenWidth();
+
+   
+    window.addEventListener('resize', checkScreenWidth);
+
+  
+    return () => {
+      window.removeEventListener('resize', checkScreenWidth);
+    };
+  }, []);
   const [showModal, setShowModal] = useState(false);
   const [documentContent, setDocumentContent] = useState([]);
+
   
   const {
     mcqQuestions, setMcqQuestions,
@@ -31,7 +52,7 @@ const Management = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [includeParagraph, setIncludeParagraph] = useState(false);
   const [includeSolution, setIncludeSolution] = useState(true);
-
+  const [confirmedNit, setConfirmedNit] = useState(false);
   const toggleInstructionsPage = () => {
     setIsInstructionsPage(!isInstructionsPage);
   };
@@ -54,93 +75,6 @@ const Management = () => {
     console.log(Paragraphs)
   };
 
-
- 
-  const handleAnswerChange = (index, newAnswer) => {
-
-    const updatedQuestions = [...Questions];
-
-    switch (selectedQuestionType) {
-      case "Mcq":
-      case "Msq":
-      case "Assertion":
-        // Keep original options but update the label (A, B, C, D)
-        updatedQuestions[index].options = updatedQuestions[index].options.map((option, idx) => ({
-          ...option,  // Keep the original option properties (including images)
-          label: String.fromCharCode(65 + idx),  // Convert index to label (A, B, C, D)
-        }));
-
-        if (selectedQuestionType === "Mcq" || selectedQuestionType === "Assertion") {
-          // MCQ and Assertion: Allow only one selection, update the answer
-          updatedQuestions[index].answer = String.fromCharCode(65 + parseInt(newAnswer, 10));
-        } else if (selectedQuestionType === "Msq") {
-          // MSQ: Multiple selections allowed, update the answer
-          if (!Array.isArray(updatedQuestions[index].answer)) {
-            updatedQuestions[index].answer = [];
-          }
-
-          const newAnswerLabel = String.fromCharCode(65 + parseInt(newAnswer, 10));
-
-          if (updatedQuestions[index].answer.includes(newAnswerLabel)) {
-            // Remove if already selected (toggle)
-            updatedQuestions[index].answer = updatedQuestions[index].answer.filter(ans => ans !== newAnswerLabel);
-          } else {
-            // Allow adding new selection only if less than 2 selected
-            if (updatedQuestions[index].answer.length < 2) {
-              updatedQuestions[index].answer.push(newAnswerLabel);
-            } else {
-              alert("You can only select two options");
-            }
-          }
-        }
-        break;
-
-      case "Nit":
-        // Allow only numbers (restrict alphabets and special characters)
-        const validAnswer = newAnswer.replace(/[A-Za-z]/g, '');  // This removes alphabets
-
-        if (newAnswer !== validAnswer) {
-          console.error('Invalid input: Alphabets are not allowed for "Nit" question type');
-          alert('Invalid input: Alphabets are not allowed for "Nit" question type');
-          return; // Exit early if the input is invalid
-        }
-        newAnswer = validAnswer; // Update the newAnswer to keep only valid characters
-
-        // Directly update answer for "Nit" question type
-        updatedQuestions[index].answer = newAnswer;
-        break;
-
-      default:
-        // Directly update answer for other question types (if applicable)
-        updatedQuestions[index].answer = newAnswer;
-        break;
-    }
-
-    // Update the specific question type state
-    switch (selectedQuestionType) {
-      case "Mcq":
-        setMcqQuestions(updatedQuestions.filter(q => q.type === "Mcq"));
-        break;
-      case "Msq":
-        setMsqQuestions(updatedQuestions.filter(q => q.type === "Msq"));
-        break;
-      case "Nit":
-        setNitQuestions(updatedQuestions.filter(q => q.type === "Nit"));
-        break;
-      case "True":
-        setTrueQuestions(updatedQuestions.filter(q => q.type === "True"));
-        break;
-      case "Assertion":
-        setAssertionQuestions(updatedQuestions.filter(q => q.type === "Assertion"));
-        break;
-      default:
-        break;
-    }
-
-    // Update the combined Questions state
-    setQuestions(updatedQuestions);
-  };
-
   const handleCheckboxChange = (e) => {
     const { name, checked } = e.target;
     if (name === "paragraph") setIncludeParagraph(checked);
@@ -159,7 +93,14 @@ const Management = () => {
       updateQuestions(assertionQuestions, setAssertionQuestions);
     }
   };
-
+  const confirmAddParagraphQuestions = () => {
+    const confirmDialog = window.confirm("Do you want to add paragraph questions in NIT?");
+    if (confirmDialog) {
+      setConfirmedNit(true);
+    } else {
+      setConfirmedNit(false);
+    }
+  };
   const renderComponent = () => {
     const questionCount = {
       Mcq: mcqQuestions.length,
@@ -168,7 +109,9 @@ const Management = () => {
       True: trueQuestions.length,
       Assertion: assertionQuestions.length
     }[selectedQuestionType];
-
+    if (selectedQuestionType === "Nit" && includeParagraph=="true") {
+      confirm("Do you want to add paragraph questions in NIT?")
+    }
     return (
       <div className="question-type-components">
         {selectedQuestionType === "Mcq" && (
@@ -176,7 +119,6 @@ const Management = () => {
             index={questionCount}
             questionCount={questionCount}
             handleParaQuestionPaste={handleParaQuestionPaste}
-            handleAnswerChange={handleAnswerChange}
             handlePaste={handlePaste}
             processImage={processImage}
             handleOptionPaste={handleOptionPaste}
@@ -193,7 +135,6 @@ const Management = () => {
             index={questionCount}
             questionCount={questionCount}
             handleParaQuestionPaste={handleParaQuestionPaste}
-            handleAnswerChange={handleAnswerChange}
             handlePaste={handlePaste}
             processImage={processImage}
             handleOptionPaste={handleOptionPaste}
@@ -210,7 +151,6 @@ const Management = () => {
             index={questionCount}
             questionCount={questionCount}
             handleParaQuestionPaste={handleParaQuestionPaste}
-            handleAnswerChange={handleAnswerChange}
             handlePaste={handlePaste}
             processImage={processImage}
             handleOptionPaste={handleOptionPaste}
@@ -227,7 +167,6 @@ const Management = () => {
             index={questionCount}
             questionCount={questionCount}
             handleParaQuestionPaste={handleParaQuestionPaste}
-            handleAnswerChange={handleAnswerChange}
             handlePaste={handlePaste}
             processImage={processImage}
             handleOptionPaste={handleOptionPaste}
@@ -244,7 +183,6 @@ const Management = () => {
             index={questionCount}
             questionCount={questionCount}
             handleParaQuestionPaste={handleParaQuestionPaste}
-            handleAnswerChange={handleAnswerChange}
             handlePaste={handlePaste}
             processImage={processImage}
             handleOptionPaste={handleOptionPaste}
@@ -256,7 +194,7 @@ const Management = () => {
             handleSave={handleSave}
           />
         )}
-        {includeParagraph && (
+        {includeParagraph &&  (
           <ParagraphCreation
             index={questionCount}
             addOptionE={addOptionE}
@@ -490,7 +428,7 @@ const Management = () => {
       }
     }
   };
-
+ 
   const handleOptionPaste = (e, index, optionIndex) => {
     e.preventDefault();
     const clipboardItems = e.clipboardData.items;
@@ -560,113 +498,146 @@ const Management = () => {
       }
     }
   };
-
   const handleSave = async () => {
     let sortid = 1;
+    let paragraphSortid = 1;
+    let questionSortid = 1;
     const questionMaxWidth = 600;
     const questionMaxHeight = 900;
     const optionMaxWidth = 600;
     const optionMaxHeight = 900;
     const maxImageWidth = 700;
+    const assertionMaxWidth = 600;
+    const assertionMaxHeight = 900;
+    const reasonMaxWidth = 600;
+    const reasonMaxHeight = 900;
     const maxImageHeight = 700;
     const docSections = [];
+    const SPACING_AFTER_QUESTION = 400;
+    const SPACING_AFTER_OPTION = 200;
+    const SPACING_BEFORE_IMAGE = 100;
+   
+
+    const processImageHelper = async (image, maxWidth, maxHeight) => {
+        return image ? await processImage(image, maxWidth, maxHeight) : null;
+    };
 
     const processQuestions = async (questions) => {
-      const clonedQuestions = JSON.parse(JSON.stringify(questions));
-      for (let index = 0; index < clonedQuestions.length; index++) {
-        const question = clonedQuestions[index];
-        const questionImageTransform = question.questionImage
-          ? await processImage(question.questionImage, questionMaxWidth, questionMaxHeight)
-          : null;
-        const solutionImageTransform = question.solutionImage
-          ? await processImage(question.solutionImage, questionMaxWidth, questionMaxHeight)
-          : null;
+        const clonedQuestions = JSON.parse(JSON.stringify(questions));
+        for (let index = 0; index < clonedQuestions.length; index++) {
+            const question = clonedQuestions[index];
+            const questionImageTransform = await processImageHelper(question.questionImage, questionMaxWidth, questionMaxHeight);
+            const solutionImageTransform = await processImageHelper(question.solutionImage, questionMaxWidth, questionMaxHeight);
+            const assertionImageTransform = await processImageHelper(question.assertionImage, assertionMaxWidth, assertionMaxHeight);
+            const reasonImageTransform = await processImageHelper(question.reasonImage, reasonMaxWidth, reasonMaxHeight);
 
-        const questionTextRun = question.questionImage
-          ? new ImageRun({
-            data: question.questionImage.split(",")[1],
-            transformation: questionImageTransform,
-          })
-          : new TextRun(question.questionText || "");
+            console.log(`Processing question ${index + 1}`);
+            console.log(`Assertion Image: ${question.assertionImage}`);
+            console.log(`Reason Image: ${question.reasonImage}`);
 
-        const questionParagraph = new Paragraph({
-          children: [new TextRun({ text: "[Q] ", bold: true }), questionTextRun],
-          spacing: { after: 400 },
-        });
+            const questionTextRun = question.questionImage
+                ? new ImageRun({ data: question.questionImage.split(",")[1], transformation: questionImageTransform })
+                : new TextRun(question.questionText || "");
 
-        const optionParagraphs = [];
-
-        if (question.type === 'True') {
-          optionParagraphs.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: "(a)", bold: true }),
-                new TextRun(" True"),
-              ],
-              spacing: { after: 200 },
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({ text: "(b)", bold: true }),
-                new TextRun(" False"),
-              ],
-              spacing: { after: 200 },
-            })
-          );
-        } else if (question.options.length > 0 && question.type !== "Nit") {
-          for (let i = 0; i < question.options.length; i++) {
-            const option = question.options[i];
-            const label = `(${String.fromCharCode(97 + i)}) `;
-            const optionTransform = option.image
-              ? await processImage(option.image, optionMaxWidth, optionMaxHeight)
-              : null;
-
-            optionParagraphs.push(
-              new Paragraph({
+            const questionParagraph = new Paragraph({
                 children: [
-                  new TextRun({ text: label, bold: true }),
-                  option.image
-                    ? new ImageRun({
-                      data: option.image.split(",")[1],
-                      transformation: optionTransform,
-                    })
-                    : new TextRun(option.text),
+                    new TextRun({ text: `[Q${index + 1}] `, bold: true }), // Embed question number
+                    questionTextRun
                 ],
-                spacing: { after: 200 },
-              })
-            );
-          }
+                spacing: { after: SPACING_AFTER_QUESTION },
+                keepLines: true,
+            });
+
+            const optionParagraphs = [];
+
+            if (question.type === 'True') {
+                optionParagraphs.push(
+                    new Paragraph({
+                        children: [new TextRun({ text: "(a)", bold: true }), new TextRun(" True")],
+                        spacing: { after: SPACING_AFTER_OPTION },
+                        keepLines: true,
+                    }),
+                    new Paragraph({
+                        children: [new TextRun({ text: "(b)", bold: true }), new TextRun(" False")],
+                        spacing: { after: SPACING_AFTER_OPTION },
+                        keepLines: true,
+                    })
+                );
+            } else if (question.options.length > 0 && question.type !== "Nit") {
+                for (let i = 0; i < question.options.length; i++) {
+                    const option = question.options[i];
+                    const label = `(${String.fromCharCode(97 + i)}) `;
+                    const optionTransform = await processImageHelper(option.image, optionMaxWidth, optionMaxHeight);
+
+                    optionParagraphs.push(
+                        new Paragraph({
+                            children: [
+                                new TextRun({ text: label, bold: true }),
+                                option.image
+                                    ? new ImageRun({ data: option.image.split(",")[1], transformation: optionTransform })
+                                    : new TextRun(option.text),
+                            ],
+                            spacing: { before: SPACING_BEFORE_IMAGE, after: SPACING_AFTER_OPTION },
+                            keepLines: true,
+                        })
+                    );
+                }
+            }
+
+            let solutionParagraph = null;
+            if (question.options.length > 0 && question.solutionImage) {
+                solutionParagraph = new Paragraph({
+                    children: [
+                        new TextRun({ text: "[soln] ", bold: true }),
+                        new ImageRun({ data: question.solutionImage.split(",")[1], transformation: solutionImageTransform }),
+                    ],
+                    spacing: { before: SPACING_BEFORE_IMAGE, after: SPACING_AFTER_OPTION },
+                    keepLines: true,
+                });
+            }
+
+            let assertionParagraph = null;
+            if (question.assertionImage) {
+                assertionParagraph = new Paragraph({
+                    children: [
+                        new TextRun({ text: "[assertion] ", bold: true }),
+                        new ImageRun({ data: question.assertionImage.split(",")[1], transformation: assertionImageTransform }),
+                    ],
+                    spacing: { before: SPACING_BEFORE_IMAGE, after: SPACING_AFTER_OPTION },
+                    keepLines: true,
+                });
+            }
+
+            let reasonParagraph = null;
+            if (question.reasonImage) {
+                reasonParagraph = new Paragraph({
+                    children: [
+                        new TextRun({ text: "[reason] ", bold: true }),
+                        new ImageRun({ data: question.reasonImage.split(",")[1], transformation: reasonImageTransform }),
+                    ],
+                    spacing: { before: SPACING_BEFORE_IMAGE, after: SPACING_AFTER_OPTION },
+                    keepLines: true,
+                });
+            }
+
+            const questionSection = {
+                children: [
+                    questionParagraph,
+                    ...optionParagraphs,
+                    new Paragraph(`[qtype] ${question.type.toUpperCase()}`, { keepLines: true }),
+                    new Paragraph({ text: `[ans] ${question.answer}`, bold: true, keepLines: true }),
+                    new Paragraph(`[Marks] [${positiveMarks || 0}, ${negativeMarks || 0}]`, { keepLines: true }),
+                    solutionParagraph,
+                    assertionParagraph,
+                    reasonParagraph,
+                    new Paragraph(`[sortid] ${sortid++}`, { keepLines: true }),
+                    new Paragraph({ text: "", spacing: { after: SPACING_AFTER_QUESTION }, keepLines: true }),
+                ].filter(Boolean),
+                properties: { pageBreakBefore: true },
+            };
+
+            docSections.push(questionSection);
         }
-
-        let solutionParagraph = null;
-        if (question.options.length > 0 && question.solutionImage) {
-          solutionParagraph = new Paragraph({
-            children: [
-              new TextRun({ text: "[soln] ", bold: true }),
-              new ImageRun({
-                data: question.solutionImage.split(",")[1],
-                transformation: solutionImageTransform,
-              }),
-            ],
-            spacing: { after: 200 },
-          });
-        }
-
-        const questionSection = {
-          children: [
-            questionParagraph,
-            ...optionParagraphs,
-            new Paragraph(`[qtype] ${question.type}`),
-            new Paragraph({ text: `[ans] ${question.answer}`, bold: true }),
-            new Paragraph(`[Marks] [${positiveMarks || 0}, ${negativeMarks || 0}]`),
-            solutionParagraph,
-            new Paragraph(`[sortid] ${sortid++}`),
-            new Paragraph({ text: "", spacing: { after: 400 } }),
-          ].filter(Boolean),
-        };
-
-        docSections.push(questionSection);
-      }
     };
 
     await processQuestions(mcqQuestions);
@@ -676,18 +647,99 @@ const Management = () => {
     await processQuestions(assertionQuestions);
 
     docSections.push({
-      children: [new Paragraph({ text: "[QQ]", pageBreakBefore: true })],
-      spacing: { after: 400 },
-    });
-    const goToQuestion = (type, index) => {
-      setCurrentQuestion({ type, index });
-      setShowModal(false);
-  };
-    const doc = new Document({
-      sections: docSections,
+        children: [new Paragraph({ text: "[QQ]", pageBreakBefore: true })],
+        spacing: { after: SPACING_AFTER_QUESTION },
     });
 
-    try {
+    // Process Paragraphs
+    for (let i = 0; i < Paragraphs.length; i++) {
+        const paragraph = Paragraphs[i];
+        const paragraphImageTransform = await processImageHelper(paragraph.paragraphImage, maxImageWidth, maxImageHeight);
+        const paragraphSolutionImageTransform = await processImageHelper(paragraph.paragraphSolutionImage, maxImageWidth, maxImageHeight);
+        const paragraphQuestionImageTransform = await processImageHelper(paragraph.paraquestionImage, maxImageWidth, maxImageHeight);
+
+        const questionOptionsParagraphs = [];
+        if (paragraph.questionType === "truefalse") {
+            questionOptionsParagraphs.push(
+                new Paragraph({
+                    children: [new TextRun({ text: "(a) True", bold: true })],
+                    spacing: { after: SPACING_AFTER_OPTION },
+                    keepLines: true,
+                }),
+                new Paragraph({
+                    children: [new TextRun({ text: "(b) False", bold: true })],
+                    spacing: { after: SPACING_AFTER_OPTION },
+                    keepLines: true,
+                })
+            );
+        } else if (paragraph.questionType !== "nit") {
+            for (let j = 0; j < paragraph.paraOptions.length; j++) {
+                const option = paragraph.paraOptions[j];
+                const optionTransform = await processImageHelper(option.image, maxImageWidth, maxImageHeight);
+
+                questionOptionsParagraphs.push(
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: `(${String.fromCharCode(97 + j)}) `, bold: true }),
+                            option.image
+                                ? new ImageRun({ data: option.image.split(",")[1], transformation: optionTransform })
+                                : new TextRun("No image"),
+                        ],
+                        spacing: { before: SPACING_BEFORE_IMAGE, after: SPACING_AFTER_OPTION },
+                        keepLines: true,
+                    })
+                );
+            }
+        }
+
+        const paragraphSection = {
+            children: [
+                new Paragraph({ children: [new TextRun({ text: `[p sortid]: ${paragraphSortid}`, bold: true })], keepLines: true }),
+                new Paragraph({ children: [new TextRun({ text: `[qtype]: ${paragraph.questionType}`, bold: true })], keepLines: true }),
+                paragraph.paraquestionImage ? new Paragraph({
+                    children: [
+                        new TextRun({ text: "[pq image]: ", bold: true }),
+                        new ImageRun({ data: paragraph.paraquestionImage.split(",")[1], transformation: paragraphQuestionImageTransform }),
+                    ],
+                    spacing: { before: SPACING_BEFORE_IMAGE, after: SPACING_AFTER_QUESTION },
+                    keepLines: true,
+                }) : null,
+                paragraph.paragraphImage ? new Paragraph({
+                  children: [
+                      new TextRun({ text: "[p image]: ", bold: true }),
+                      new ImageRun({ data: paragraph.paragraphImage.split(",")[1], transformation: paragraphImageTransform }),
+                  ],
+                  spacing: { before: SPACING_BEFORE_IMAGE, after: SPACING_AFTER_QUESTION },
+                  keepLines: true,
+              }) : null,
+              paragraph.paragraphSolutionImage ? new Paragraph({
+                  children: [
+                      new TextRun({ text: "[p soln]: ", bold: true }),
+                      new ImageRun({ data: paragraph.paragraphSolutionImage.split(",")[1], transformation: paragraphSolutionImageTransform }),
+                  ],
+                  spacing: { before: SPACING_BEFORE_IMAGE, after: SPACING_AFTER_QUESTION },
+                  keepLines: true,
+              }) : null,
+              new Paragraph({ children: [new TextRun({ text: "[ans] ", bold: true }), new TextRun(paragraph.paraanswers || "No answer provided")], keepLines: true }),
+              ...questionOptionsParagraphs,
+              new Paragraph(`[sortid] ${questionSortid++}`, { keepLines: true }),
+              new Paragraph({ text: "", spacing: { after: SPACING_AFTER_QUESTION }, keepLines: true }),
+          ].filter(Boolean),
+          properties: { pageBreakBefore: true },
+      };
+
+      docSections.push(paragraphSection);
+      paragraphSortid++;
+  }
+
+  docSections.push({
+      children: [new Paragraph({ text: "[QQ]", pageBreakBefore: true })],
+      spacing: { after: SPACING_AFTER_QUESTION },
+  });
+
+  const doc = new Document({ sections: docSections });
+
+  try {
       const blob = await Packer.toBlob(doc);
       const arrayBuffer = await blob.arrayBuffer();
       setDocumentContent(arrayBuffer);
@@ -695,10 +747,8 @@ const Management = () => {
   } catch (error) {
       console.error("Error creating the document:", error);
   }
-  };
-
+};
   const handleEdit = () => {
-    // Close the modal and go back to editing
     setShowModal(false);
 };
   return (
@@ -709,7 +759,7 @@ const Management = () => {
       <div className={`sidebar ${isSidebarOpen ? 'show' : ''}`}>
         <h3>Type of Question:</h3>
         <button onClick={toggleInstructionsPage} className="instructions-btn">
-          {isInstructionsPage ? 'Back' : 'Instructions'}
+          {isInstructionsPage ? 'Close Instructions' : 'Instructions'}
         </button>
         <select onChange={handleQuestionClick} value={selectedQuestionType}>
           <option value="Mcq">MCQ</option>
@@ -718,11 +768,16 @@ const Management = () => {
           <option value="True">True/False</option>
           <option value="Assertion">Assertion</option>
         </select>
+        
         <div className="marks-container">
           <label>Marks:</label>
           <input type="number" placeholder="+ve" onChange={handlePositiveChange} />
           <input type="number" placeholder="-ve" onChange={handleNegativeChange} />
         </div>
+        <label>
+            Total Questions:
+          </label>
+          <input className='total-questions' value={Questions.length}/>
         <div className="checkbox-group">
           <label>
             <input
@@ -751,15 +806,16 @@ const Management = () => {
             />{" "}
             Add Option E
           </label>
+        
         </div>
       </div>
-      <div className="main-content" style={{ overflowX: 'auto', width:"100%", height: '100vh' }}>
+      <div className="main-content" >
+        
         {isInstructionsPage ? (
           <Instruction />
         ) : (
           <>
             <div>
-              <h2>Total no.of Questions: {Questions.length}</h2>
               {renderComponent()}
             </div>
             <button
@@ -767,10 +823,12 @@ const Management = () => {
               onClick={addQuestion}
               className="save-button mcq-container"
             >
-              Add New Question
+              Add Question
             </button>
-            <div>
-              <button  style={{ display: "block" }}  className="save-button mcq-container" onClick={handleSave}>Preview</button>
+            { Questions.length > 0 && (
+              <div>
+                 <div>
+             <button  style={{ display: "block" }}  className="save-button mcq-container" onClick={handleSave}>Preview</button>
               <PreviewModal
                 show={showModal}
                 handleClose={() => setShowModal(false)}
@@ -779,12 +837,19 @@ const Management = () => {
               />
             </div>
             <button
-              style={{ display: "block" }}
-              onClick={(data) => handleSave(data)}
-              className="save-button mcq-container"
-            >
-              Save Document
-            </button>
+            style={{ display: "block" }}
+            onClick={(data) => handleSave(data)}
+            className="save-button mcq-container"
+          >
+            Save Document
+          </button>
+              </div>
+           
+            
+            )}
+        
+            
+            
           </>
         )}
       </div>

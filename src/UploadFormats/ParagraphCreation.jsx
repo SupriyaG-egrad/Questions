@@ -3,62 +3,83 @@ import { QuestionsContext } from './QuestionsContext';
 import './Questions.css';
 
 const ParagraphCreation = ({ includeSolution, processImage }) => {
-    const { Paragraphs, setParagraphs,questionCount } = useContext(QuestionsContext);
+    const { Paragraphs, setParagraphs, questionCount } = useContext(QuestionsContext);
     const [numberOfQuestions, setNumberOfQuestions] = useState('');
     const [clickedBox, setClickedBox] = useState(null);
 
     // Helper function to handle image paste logic
     const handleImagePaste = (e, questionIndex, optionIndex = null, isSolution = false, isParagraph = false) => {
-        e.preventDefault();
         const clipboardItems = e.clipboardData.items;
-      
-        for (let i = 0; i < clipboardItems.length; i++) {
-          if (clipboardItems[i].type.startsWith('image/')) {
-            const file = clipboardItems[i].getAsFile();
-            const reader = new FileReader();
-            reader.onload = () => {
-              // Ensure the Paragraphs array and the specific question exist
-              const updatedParagraphs = [...Paragraphs];
-              updatedParagraphs[questionIndex] = updatedParagraphs[questionIndex] || {
-                paraOptions: Array(4).fill({ isCorrect: false, image: null }), // Ensure paraOptions is always an array
-                paraquestionImage: '',
-                paragraphImage: '',
-                paragraphSolutionImage: ''
-              };
-      
-              if (isParagraph) {
-                // For paragraph images
-                if (isSolution) {
-                  updatedParagraphs[questionIndex].paragraphSolutionImage = reader.result;
-                } else {
-                  updatedParagraphs[questionIndex].paragraphImage = reader.result;
-                }
-              } else {
-                // For question images or option images
-                if (isSolution) {
-                  if (optionIndex !== null && updatedParagraphs[questionIndex].paraOptions[optionIndex]) {
-                    updatedParagraphs[questionIndex].paraOptions[optionIndex].image = reader.result;
-                  } else {
-                    updatedParagraphs[questionIndex].paraquestionImage = reader.result;
-                  }
-                } else {
-                  if (optionIndex !== undefined && updatedParagraphs[questionIndex].paraOptions[optionIndex]) {
-                    updatedParagraphs[questionIndex].paraOptions[optionIndex].image = reader.result;
-                  } else {
-                    updatedParagraphs[questionIndex].paraquestionImage = reader.result;
-                  }
-                }
-              }
-      
-              setParagraphs(updatedParagraphs);
-            };
-            reader.readAsDataURL(file);
-            break;
-          }
-        }
-      };
-      
 
+        for (let i = 0; i < clipboardItems.length; i++) {
+            if (clipboardItems[i].type.startsWith('image/')) {
+                const file = clipboardItems[i].getAsFile();
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const updatedParagraphs = [...Paragraphs];
+                    updatedParagraphs[questionIndex] = updatedParagraphs[questionIndex] || {
+                        paraOptions: Array(4).fill({ isCorrect: false, image: null }),
+                        paraquestionImage: '',
+                        paragraphImage: '',
+                        paragraphSolutionImage: ''
+                    };
+
+                    if (isParagraph) {
+                        if (isSolution) {
+                            updatedParagraphs[questionIndex].paragraphSolutionImage = reader.result;
+                        } else {
+                            updatedParagraphs[questionIndex].paragraphImage = reader.result;
+                        }
+                    } else {
+                        if (isSolution) {
+                            if (optionIndex !== null && updatedParagraphs[questionIndex].paraOptions[optionIndex]) {
+                                updatedParagraphs[questionIndex].paraOptions[optionIndex].image = reader.result;
+                            } else {
+                                updatedParagraphs[questionIndex].paraquestionImage = reader.result;
+                            }
+                        } else {
+                            if (optionIndex !== undefined && updatedParagraphs[questionIndex].paraOptions[optionIndex]) {
+                                updatedParagraphs[questionIndex].paraOptions[optionIndex].image = reader.result;
+                            } else {
+                                updatedParagraphs[questionIndex].paraquestionImage = reader.result;
+                            }
+                        }
+                    }
+
+                    setParagraphs(updatedParagraphs);
+                };
+                reader.readAsDataURL(file);
+                break;
+            }
+        }
+    };
+
+    // Function to remove images
+    const removeImage = (questionIndex, optionIndex = null, isSolution = false, isParagraph = false) => {
+        const updatedParagraphs = [...Paragraphs];
+        if (isParagraph) {
+            if (isSolution) {
+                updatedParagraphs[questionIndex].paragraphSolutionImage = '';
+            } else {
+                updatedParagraphs[questionIndex].paragraphImage = '';
+            }
+        } else {
+            if (isSolution) {
+                if (optionIndex !== null) {
+                    updatedParagraphs[questionIndex].paraOptions[optionIndex].image = '';
+                } else {
+                    updatedParagraphs[questionIndex].paraquestionImage = '';
+                }
+            } else {
+                if (optionIndex !== null) {
+                    updatedParagraphs[questionIndex].paraOptions[optionIndex].image = '';
+                } else {
+                    updatedParagraphs[questionIndex].paraquestionImage = '';
+                }
+            }
+        }
+        setParagraphs(updatedParagraphs);
+    };
 
     // Update the number of questions and generate default structure
     const updateQuestions = (numQuestions) => {
@@ -68,17 +89,17 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
         const newQuestions = Array.from({ length: parsedNum }, () => ({
             questionType: 'mcq',
             paraOptions: [
-              { isCorrect: false, image: null },
-              { isCorrect: false, image: null },
-              { isCorrect: false, image: null },
-              { isCorrect: false, image: null },
+                { isCorrect: false, image: null },
+                { isCorrect: false, image: null },
+                { isCorrect: false, image: null },
+                { isCorrect: false, image: null },
             ],
             paraanswers: '',
             paraquestionImage: '',
             paragraphImage: '',
             paragraphSolutionImage: '',
-          }));
-          setParagraphs(newQuestions)
+        }));
+        setParagraphs(newQuestions);
     };
 
     // Handle the question type change
@@ -126,26 +147,28 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
             <div className="mcq-container">
                 <div className="question-wrapper">
                     {/* Paragraph Image Section */}
-                    <div className="paragraph-image-container">
-                        <h3>Paste Image for Paragraph</h3>
-                        <div
-                            className={`option box ${clickedBox === 'paragraph-image' ? 'clicked' : ''}`}
-                            onClick={() => setClickedBox('paragraph-image')}
-                            onPaste={(e) => handleImagePaste(e, 0, null, false, true)}
-                        >
-                            {Paragraphs[0]?.paragraphImage ? (
-                                <>
-                                    <img src={Paragraphs[0].paragraphImage} alt="Paragraph" style={{ maxWidth: '100%' }} />
-                                    <button onClick={() => handleImagePaste({ target: { value: null } }, 0, null, false, true)} className="remove-button">
-                                        Remove Image
-                                    </button>
-                                </>
-                            ) : (
-                                'Paste your paragraph image here (ctrl+v)'
-                            )}
+                    {numberOfQuestions > 0 && (
+                        <div className="paragraph-image-container">
+                            <h3>Paragraph</h3>
+                            <h3>Paste Image for Paragraph</h3>
+                            <div
+                                className={`option box ${clickedBox === 'paragraph-image' ? 'clicked' : ''}`}
+                                onClick={() => setClickedBox('paragraph-image')}
+                                onPaste={(e) => handleImagePaste(e, 0, null, false, true)}
+                            >
+                                {Paragraphs[0]?.paragraphImage ? (
+                                    <>
+                                        <img src={Paragraphs[0].paragraphImage} alt="Paragraph" style={{ maxWidth: '100%' }} />
+                                        <button onClick={() => removeImage(0, null, false, true)} className="remove-button">
+                                            Remove Image
+                                        </button>
+                                    </>
+                                ) : (
+                                    'Paste your paragraph image here (ctrl+v)'
+                                )}
+                            </div>
                         </div>
-                    </div>
-
+                    )}
                     {/* Optional Solution Image Section */}
                     {includeSolution && (
                         <div className="solution-image-container">
@@ -158,7 +181,7 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
                                 {Paragraphs[0]?.paragraphSolutionImage ? (
                                     <>
                                         <img src={Paragraphs[0].paragraphSolutionImage} alt="Solution" style={{ maxWidth: '100%' }} />
-                                        <button onClick={() => handleImagePaste({ target: { value: null } }, 0, null, true, true)} className="remove-button">
+                                        <button onClick={() => removeImage(0, null, true, true)} className="remove-button">
                                             Remove Image
                                         </button>
                                     </>
@@ -169,12 +192,13 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
                         </div>
                     )}
 
-
                     {/* Number of Questions Input */}
                     <div>
                         <input
                             className="input-field"
                             type="number"
+                            min={1}
+                            max={100}
                             value={numberOfQuestions}
                             onChange={(e) => setNumberOfQuestions(e.target.value)}
                             placeholder="Enter number of questions"
@@ -182,7 +206,7 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
                     </div>
 
                     {/* Questions Section */}
-                    { numberOfQuestions>0 && Paragraphs.map((question, index) => (
+                    {numberOfQuestions > 0 && Paragraphs.map((question, index) => (
                         <div key={index} className="question-section">
                             <h3>Question {index + 1}</h3>
 
@@ -201,8 +225,8 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
                                 </select>
                             </div>
 
-                            {/* Question Image */}
-                            <div className="question-image-container">
+                             {/* Question Image */}
+                             <div className="question-image-container">
                                 <h3>Paste Image for Question</h3>
                                 <div
                                     className={`option box ${clickedBox === `question-${index}` ? 'clicked' : ''}`}
@@ -216,7 +240,7 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
                                                 alt={`Question ${index + 1}`}
                                                 style={{ maxWidth: '100%' }}
                                             />
-                                            <button onClick={() => handleImagePaste({ target: { value: null } }, index)} className="remove-button">
+                                            <button onClick={() => removeImage(index)} className="remove-button">
                                                 Remove Image
                                             </button>
                                         </>
@@ -280,7 +304,7 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
                                                 {option.image ? (
                                                     <>
                                                         <img src={option.image} alt={`Option ${String.fromCharCode(65 + optionIndex)}`} style={{ maxWidth: '100%' }} />
-                                                        <button onClick={() => handleImagePaste({ target: { value: null } }, index, optionIndex)} className="remove-button">
+                                                        <button onClick={() => removeImage(index, optionIndex)} className="remove-button">
                                                             Remove Image
                                                         </button>
                                                     </>

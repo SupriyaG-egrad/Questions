@@ -5,11 +5,11 @@ const Instruction = () => {
     <div className="App">
       {/* Header Section */}
       <header>
-        <h1>Question Generator Tool</h1>
+        <h1>GuideLines</h1>
       </header>
 
       {/* Main Content Container */}
-      <div className="container">
+      <div className="containerbox">
 
         {/* Introduction Section */}
         <section className="section">
@@ -27,56 +27,61 @@ const Instruction = () => {
           <ul>
             <li><strong>MCQ (Multiple Choice Question):</strong> A question with multiple options, where only one option can be selected. 
                 Example: 
-                <pre>
+                <div>
                   What is the capital of France? 
-                  a) Berlin 
-                  b) Madrid 
-                  c) Paris 
-                  d) Rome 
-                </pre>
+                <div> a) Berlin </div>  
+                 <div> b) Madrid</div>  
+                 <div> c) Paris</div>
+                </div>
             </li>
             <li><strong>MSQ (Multiple Select Question):</strong> A question with multiple options, where more than one option can be selected. 
                 Example: 
-                <pre>
+                <div>
                   Which of these are programming languages? 
-                  a) JavaScript 
-                  b) Python 
-                  c) English 
-                  d) Java 
-                </pre>
+                 <div>a) JavaScript </div> 
+                 <div>b) Python </div> 
+                 <div> c) English </div>
+                 <div>d) Java </div> 
+                </div>
             </li>
             <li><strong>True/False:</strong> A question with two options, True or False, where only one option is correct. 
                 Example:
-                <pre>
-                  The Earth is flat. 
-                  a) True 
-                  b) False 
-                </pre>
+                <div>
+                  <div>The Earth is flat.</div> 
+                 <div>a) True </div> 
+                  <div>b) False </div>
+                </div>
             </li>
             <li><strong>Assertion:</strong> A statement where the user has to assert the correct option based on a true or false statement. 
                 Example: 
-                <pre>
-                  Assertion: The capital of India is Delhi. 
-                  a) True 
-                  b) False 
-                </pre>
+                <div>
+                <div>Assertion (A) – A statement that presents a fact or claim.</div>
+                <div>Reason (R) – A statement that explains why the assertion is true or false.</div>
+                <div>a)Both A and R are true, and R correctly explains A.</div>
+                <div>b)Both A and R are true, but R does not explain A.</div>
+                <div>c)A is true, but R is false.</div>
+                <div>A is false, but R is true.</div>
+                </div>
             </li>
             <li><strong>NIT (Not in Text):</strong> A question where the answer must be a numeric value, no options are provided. 
                 Example: 
-                <pre>
+                <div>
                   What is the population of the world in billions? (Numeric answer)
-                </pre>
+                </div>
             </li>
             <li><strong>Paragraph:</strong> A question where the user has to interpret or answer based on a paragraph provided. 
                 Example: 
-                <pre>
-                  Read the paragraph below and answer the question:
-                  "In 1492, Christopher Columbus discovered the New World."
-                  Question: When did Columbus discover the New World?
-                </pre>
+                <div style={{margin:"10px"}}>
+                Photosynthesis is the process by which green plants prepare their own food using sunlight, carbon dioxide, and water. This process occurs in the chloroplasts of plant cells, where chlorophyll absorbs light energy.
+                 Oxygen is released as a byproduct, and the stored glucose helps plants grow.
+                </div>
+                <div>1)What is the byproduct of photosynthesis?</div>
+                <div>2)What is the role of chlorophyll in photosynthesis?</div>
+                <div>3)What is the byproduct of photosynthesis?</div>
             </li>
           </ul>
         </section>
+
 
         {/* Instructions Section */}
         <section className="section">

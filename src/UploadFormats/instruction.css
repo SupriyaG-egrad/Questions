@@ -13,7 +13,7 @@ body {
 }
 
 /* Container */
-.container {
+.containerbox {
   width: 80%;
   margin: 20px auto;
   max-width: 1200px;
@@ -111,72 +111,6 @@ button:focus {
   outline: none;
 }
 
-/* Responsive Styles */
-@media (max-width: 1200px) {
-  .container {
-      width: 90%;
-  }
 
-  h1 {
-      font-size: 2.2rem;
-  }
 
-  h2 {
-      font-size: 1.6rem;
-  }
 
-  pre {
-      padding: 8px;
-  }
-}
-
-@media (max-width: 768px) {
-  h1 {
-      font-size: 2rem;
-  }
-
-  h2 {
-      font-size: 1.4rem;
-  }
-
-  .section {
-      padding: 20px;
-  }
-
-  ul, ol {
-      margin-left: 10px;
-  }
-
-  pre {
-      padding: 8px;
-      font-size: 0.9rem;
-  }
-
-  button {
-      padding: 10px 18px;
-      font-size: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  h1 {
-      font-size: 1.6rem;
-  }
-
-  h2 {
-      font-size: 1.2rem;
-  }
-
-  .container {
-      width: 100%;
-  }
-
-  pre {
-      font-size: 0.9rem;
-  }
-
-  button {
-      width: 100%;
-      font-size: 1rem;
-  }
-}
