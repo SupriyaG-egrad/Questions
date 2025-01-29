@@ -7,7 +7,7 @@ const TRUE = ({
   removeQuestion,
   includeSolution,
 }) => {
-  const { trueQuestions, setTrueQuestions, Questions, setQuestions } = useContext(QuestionsContext);
+  const { Questions, setQuestions } = useContext(QuestionsContext);
   const [clickedBox, setClickedBox] = useState(null); // Track the clicked box
 
   const handleClickBox = (boxName) => {
@@ -16,13 +16,15 @@ const TRUE = ({
       setClickedBox(boxName);
     }
   };
+
   const handleAnswerChange = (index, newAnswer) => {
-    setTrueQuestions(prev => {
+    setQuestions(prev => {
       const updated = [...prev];
       updated[index].answer = newAnswer === "true" ? "True" : "False";
       return updated;
     });
   };
+
   const handlePasteImage = (e, type, index) => {
     e.preventDefault();
     const clipboardItems = e.clipboardData.items;
@@ -31,7 +33,7 @@ const TRUE = ({
         const file = item.getAsFile();
         const reader = new FileReader();
         reader.onload = () => {
-          setTrueQuestions(prev => {
+          setQuestions(prev => {
             const updated = [...prev];
             if (type === "question") {
               updated[index].questionImage = reader.result;
@@ -48,9 +50,9 @@ const TRUE = ({
   };
 
   const renderQuestions = () => {
-    return trueQuestions.map((question, index) => (
+    return Questions.filter(q => q.type === "True").map((question, index) => (
       <div key={index} className="question-item">
-        <h3>Question {index + 1}</h3>
+        <h3>TRUE Question {index + 1}</h3>
 
         {/* Question Image Section */}
         <div className="question-image-container">
@@ -87,7 +89,7 @@ const TRUE = ({
               type="radio"
               name={`answer-${index}`}
               value="true"
-              checked={question.answer === "true"}
+              checked={question.answer === "True"}
               onChange={(e) => handleAnswerChange(index, e.target.value)}
             />
             True
@@ -97,7 +99,7 @@ const TRUE = ({
               type="radio"
               name={`answer-${index}`}
               value="false"
-              checked={question.answer === "false"}
+              checked={question.answer === "False"}
               onChange={(e) => handleAnswerChange(index, e.target.value)}
             />
             False
@@ -138,8 +140,8 @@ const TRUE = ({
         <div className="answer-container">
           <h3>Selected Answers</h3>
           <input
+            readOnly
             type="text"
-            onChange={(e) => handleAnswerChange(index, e.target.value)}
             value={question.answer}
             className="answer-input"
           />
@@ -156,9 +158,9 @@ const TRUE = ({
   };
 
   return (
-    <div className="mcq-container">
+    <div className="true-container">
       <div className="question-wrapper">
-        {trueQuestions.length > 0 ? renderQuestions() : ""}
+        {Questions.filter(q => q.type === "True").length > 0 ? renderQuestions() : <p>Loading questions...</p>}
       </div>
     </div>
   );

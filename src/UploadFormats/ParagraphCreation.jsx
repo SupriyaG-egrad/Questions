@@ -2,8 +2,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import { QuestionsContext } from './QuestionsContext';
 import './Questions.css';
 
-const ParagraphCreation = ({ includeSolution, processImage }) => {
-    const { Paragraphs, setParagraphs, questionCount } = useContext(QuestionsContext);
+const ParagraphCreation = ({ includeSolution }) => {
+    const { Paragraphs, setParagraphs} = useContext(QuestionsContext);
     const [numberOfQuestions, setNumberOfQuestions] = useState('');
     const [clickedBox, setClickedBox] = useState(null);
 
@@ -113,30 +113,48 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
     const handleAnswerChange = (questionIndex, newAnswer, optionIndex = null) => {
         const updatedParagraphs = [...Paragraphs];
         const question = updatedParagraphs[questionIndex];
-
-        if (question.questionType === 'mcq') {
+    
+        if (question.questionType === 'nit') {
+            const validAnswer = newAnswer.replace(/[A-Za-z]/g, '');  // This removes alphabets
+    
+            if (newAnswer !== validAnswer) {
+                console.error('Invalid input: Alphabets are not allowed for "Nit" question type');
+                alert('Invalid input: Alphabets are not allowed for "Nit" question type');
+                return; // Exit early if the input is invalid
+            }
+    
+            updatedParagraphs[questionIndex].paraanswers = validAnswer;
+        } else if (question.questionType === 'mcq') {
+            // Single correct answer
             updatedParagraphs[questionIndex].paraanswers = newAnswer;
             updatedParagraphs[questionIndex].paraOptions.forEach((option, idx) => {
                 option.isCorrect = idx === optionIndex;
             });
         } else if (question.questionType === 'msq') {
+            // Multiple correct answers
             const updatedOptions = [...question.paraOptions];
-            updatedOptions[optionIndex].isCorrect = !updatedOptions[optionIndex].isCorrect;
-
+            updatedOptions[optionIndex].isCorrect = !updatedOptions[optionIndex].isCorrect; // Toggle selection
+    
             if (updatedOptions.filter(option => option.isCorrect).length > 2) {
                 updatedOptions[optionIndex].isCorrect = false;
                 alert('You can only select up to 2 options for MSQ questions.');
             }
-
+    
             updatedParagraphs[questionIndex].paraOptions = updatedOptions;
+            
+            // Fix: Store only selected option letters in paraanswers
             updatedParagraphs[questionIndex].paraanswers = updatedOptions
-                .map((option, idx) => String.fromCharCode(65 + idx)); // Correct options as letters (A, B, C, D)
+                .map((option, idx) => option.isCorrect ? String.fromCharCode(65 + idx) : null)
+                .filter(Boolean); // Remove null values
+    
+            console.log("Updated Answers:", updatedParagraphs[questionIndex].paraanswers);
         } else {
             updatedParagraphs[questionIndex].paraanswers = newAnswer;
         }
-
+    
         setParagraphs(updatedParagraphs);
     };
+    
 
     useEffect(() => {
         updateQuestions(numberOfQuestions);
@@ -208,7 +226,7 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
                     {/* Questions Section */}
                     {numberOfQuestions > 0 && Paragraphs.map((question, index) => (
                         <div key={index} className="question-section">
-                            <h3>Question {index + 1}</h3>
+                            <h3>Paragraph Question {index + 1}</h3>
 
                             {/* Question Type Dropdown */}
                             <div>
@@ -291,7 +309,7 @@ const ParagraphCreation = ({ includeSolution, processImage }) => {
                                                 <input
                                                     name={`option-${index}`}
                                                     type={question.questionType === 'msq' ? 'checkbox' : 'radio'}
-                                                    value={option.isCorrect}
+                                                    checked={option.isCorrect} 
                                                     onChange={() => handleAnswerChange(index, String.fromCharCode(65 + optionIndex), optionIndex)}
                                                 />
                                                 Option {String.fromCharCode(65 + optionIndex)}

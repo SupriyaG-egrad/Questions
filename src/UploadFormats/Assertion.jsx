@@ -4,13 +4,8 @@ import ParagraphCreation from "./ParagraphCreation";
 import { QuestionsContext } from './QuestionsContext';
 
 const Assertion = ({
-  Paragraphs,
-  setParagraphs,
-  handleOptionPaste,
-  handlePaste,
   handleRemoveImage,
   removeQuestion,
-  includeParagraph,
   includeSolution,
 }) => {
   const [clickedBox, setClickedBox] = useState(null); // Track the clicked box
@@ -58,7 +53,7 @@ const Assertion = ({
   const renderQuestions = () => {
     return assertionQuestions.map((question, index) => (
       <div key={index} className="question-item">
-        <h3>Question {index + 1}</h3>
+        <h3>Assertion Question {index + 1}</h3>
 
         {/* Assertion Image Section */}
         <div className="question-image-container">

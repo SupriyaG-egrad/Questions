@@ -4,14 +4,13 @@ import { QuestionsContext } from './QuestionsContext';
 
 const MSQ = ({
   handleOptionPaste,
-  addNewQuestion,
   handlePaste,
   handleRemoveImage,
   removeQuestion,
   includeSolution,
   addOptionE,
 }) => {
-  const { msqQuestions, setMsqQuestions, Questions, setQuestions } = useContext(QuestionsContext);
+  const { Questions, setQuestions } = useContext(QuestionsContext);
   const [clickedBox, setClickedBox] = useState(null); // Track the clicked box
 
   const handleClickBox = (boxName) => {
@@ -20,29 +19,23 @@ const MSQ = ({
       setClickedBox(boxName);
     }
   };
+
   const handleAnswerChange = (index, optionIndex, isChecked) => {
-    setMsqQuestions(prev => {
+    setQuestions(prev => {
       const updated = [...prev];
-      if (!Array.isArray(updated[index].answer)) {
-        updated[index].answer = [];
-      }
       if (isChecked) {
         if (!updated[index].answer.includes(String.fromCharCode(65 + optionIndex))) {
-          if (updated[index].answer.length < 2) {
-            updated[index].answer.push(String.fromCharCode(65 + optionIndex));
-          } else {
-            alert("You can only select two options.");
-            return ;
-          }
+          updated[index].answer += String.fromCharCode(65 + optionIndex);
         }
       } else {
-        updated[index].answer = updated[index].answer.filter(answer => answer !== String.fromCharCode(65 + optionIndex));
+        updated[index].answer = updated[index].answer.replace(String.fromCharCode(65 + optionIndex), '');
       }
       return updated;
     });
   };
+
   const renderQuestions = () => {
-    return msqQuestions.map((question, index) => (
+    return Questions.filter(q => q.type === "Msq").map((question, index) => (
       <div key={index} className="question-item">
         <h3>Question {index + 1}</h3>
 
@@ -60,7 +53,7 @@ const MSQ = ({
                   const file = item.getAsFile();
                   const reader = new FileReader();
                   reader.onload = () => {
-                    setMsqQuestions(prev => {
+                    setQuestions(prev => {
                       const updated = [...prev];
                       updated[index].questionImage = reader.result;
                       return updated;
@@ -99,7 +92,7 @@ const MSQ = ({
             <label className="option-label">
               <input
                 type="checkbox"
-               
+                name={`options-${index}`}
                 onChange={(e) => handleAnswerChange(index, optionIndex, e.target.checked)}
                 className="option-box"
               />
@@ -137,7 +130,7 @@ const MSQ = ({
             <label>
               <input
                 type="checkbox"
-              
+                name={`options-${index}`}
                 onChange={(e) => handleAnswerChange(index, 4, e.target.checked)}
               />
               Option E
@@ -219,9 +212,9 @@ const MSQ = ({
   };
 
   return (
-    <div className="mcq-container">
+    <div className="msq-container">
       <div className="question-wrapper">
-        {msqQuestions.length > 0 ? renderQuestions() : <p>Loading questions...</p>}
+        {Questions.filter(q => q.type === "Msq").length > 0 ? renderQuestions() : <p>Loading questions...</p>}
       </div>
     </div>
   );

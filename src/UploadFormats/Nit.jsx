@@ -7,7 +7,7 @@ const NIT = ({
   removeQuestion,
   includeSolution,
 }) => {
-  const { nitQuestions, setNitQuestions, Questions, setQuestions } = useContext(QuestionsContext);
+  const { Questions, setQuestions } = useContext(QuestionsContext);
   const [clickedBox, setClickedBox] = useState(null); // Track the clicked box
 
   const handleClickBox = (boxName) => {
@@ -16,6 +16,7 @@ const NIT = ({
       setClickedBox(boxName);
     }
   };
+
   const handleAnswerChange = (index, newAnswer) => {
     const validAnswer = newAnswer.replace(/[A-Za-z]/g, '');  // This removes alphabets
     
@@ -27,7 +28,7 @@ const NIT = ({
     
     newAnswer = validAnswer; // Update the newAnswer to keep only valid characters
     
-    setNitQuestions(prev => {
+    setQuestions(prev => {
       const updated = [...prev];
       updated[index].answer = newAnswer;
       return updated;
@@ -42,7 +43,7 @@ const NIT = ({
         const file = item.getAsFile();
         const reader = new FileReader();
         reader.onload = () => {
-          setNitQuestions(prev => {
+          setQuestions(prev => {
             const updated = [...prev];
             if (type === "question") {
               updated[index].questionImage = reader.result;
@@ -59,9 +60,9 @@ const NIT = ({
   };
 
   const renderQuestions = () => {
-    return nitQuestions.map((question, index) => (
+    return Questions.filter(q => q.type === "Nit").map((question, index) => (
       <div key={index} className="question-item">
-        <h3>Question {index + 1}</h3>
+        <h3>NIT Question {index + 1}</h3>
 
         {/* Question Image Section */}
         <div className="question-image-container">
@@ -143,9 +144,9 @@ const NIT = ({
   };
 
   return (
-    <div className="mcq-container">
+    <div className="nit-container">
       <div className="question-wrapper">
-        {nitQuestions.length > 0 ? renderQuestions() : ""}
+        {Questions.filter(q => q.type === "Nit").length > 0 ? renderQuestions() : <p>Loading questions...</p>}
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { use } from 'react';
 
 export const QuestionsContext = createContext();
 
@@ -14,20 +13,14 @@ export const QuestionsProvider = ({ children }) => {
   const [negativeMarks, setNegativeMarks] = useState(0);
   const [selectedQuestionType, setSelectedQuestionType] = useState("Mcq");
   const [addOptionE, setAddOptionE] = useState(false);
-
-  useEffect(() => {
-    setQuestions([
-      ...mcqQuestions,
-      ...msqQuestions,
-      ...nitQuestions,
-      ...trueQuestions,
-      ...assertionQuestions
-    ]);
-  }, [mcqQuestions, msqQuestions, nitQuestions, trueQuestions, assertionQuestions]);
-   const [Paragraphs,setParagraphs]=useState([])
+  const [Paragraphs, setParagraphs] = useState([]);
+  const [indexCount,setindexCount]=useState(1)
+  const incrementCounter = () => {
+    setindexCount(prev => prev + 1);
+  };
   return (
     <QuestionsContext.Provider value={{
-      Paragraphs,setParagraphs,
+      Paragraphs, setParagraphs,
       mcqQuestions, setMcqQuestions,
       msqQuestions, setMsqQuestions,
       nitQuestions, setNitQuestions,
@@ -37,7 +30,7 @@ export const QuestionsProvider = ({ children }) => {
       positiveMarks, setPositiveMarks,
       negativeMarks, setNegativeMarks,
       selectedQuestionType, setSelectedQuestionType,
-      addOptionE, setAddOptionE
+      addOptionE, setAddOptionE,indexCount,incrementCounter,setindexCount
     }}>
       {children}
     </QuestionsContext.Provider>

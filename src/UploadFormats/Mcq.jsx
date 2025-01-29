@@ -10,7 +10,7 @@ const MCQ = ({
   includeSolution,
   addOptionE,
 }) => {
-  const { mcqQuestions, setMcqQuestions, Questions, setQuestions } = useContext(QuestionsContext);
+  const { Questions, setQuestions } = useContext(QuestionsContext);
   const [clickedBox, setClickedBox] = useState(null); // Track the clicked box
 
   const handleClickBox = (boxName) => {
@@ -19,8 +19,9 @@ const MCQ = ({
       setClickedBox(boxName);
     }
   };
+
   const handleAnswerChange = (index, optionIndex, isChecked) => {
-    setMcqQuestions(prev => {
+    setQuestions(prev => {
       const updated = [...prev];
       if (isChecked) {
         updated[index].answer = String.fromCharCode(65 + optionIndex);
@@ -32,7 +33,8 @@ const MCQ = ({
   };
 
   const renderQuestions = () => {
-    return mcqQuestions.map((question, index) => (
+    debugger
+    return Questions.filter(q => q.type === "Mcq").map((question, index) => (
       <div key={index} className="question-item">
         <h3>Question {index + 1}</h3>
 
@@ -50,7 +52,7 @@ const MCQ = ({
                   const file = item.getAsFile();
                   const reader = new FileReader();
                   reader.onload = () => {
-                    setMcqQuestions(prev => {
+                    setQuestions(prev => {
                       const updated = [...prev];
                       updated[index].questionImage = reader.result;
                       return updated;
@@ -89,7 +91,7 @@ const MCQ = ({
             <label className="option-label">
               <input
                 type="radio"
-                name='options'
+                name={`options-${index}`}
                 onChange={(e) => handleAnswerChange(index, optionIndex, e.target.checked)}
                 className="option-box"
               />
@@ -127,7 +129,7 @@ const MCQ = ({
             <label>
               <input
                 type="radio"
-              
+                name={`options-${index}`}
                 onChange={(e) => handleAnswerChange(index, 4, e.target.checked)}
               />
               Option E
@@ -193,7 +195,6 @@ const MCQ = ({
           <input
             readOnly
             type="text"
-            onChange={(e) => handleAnswerChange(index, e.target.value)}
             value={question.answer}
             className="answer-input"
           />
@@ -212,7 +213,7 @@ const MCQ = ({
   return (
     <div className="mcq-container">
       <div className="question-wrapper">
-        {mcqQuestions.length > 0 ? renderQuestions() : <p>Loading questions...</p>}
+        {Questions.filter(q => q.type === "Mcq").length > 0 ? renderQuestions() : <p>Loading questions...</p>}
       </div>
     </div>
   );

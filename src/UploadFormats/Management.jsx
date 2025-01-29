@@ -19,22 +19,15 @@ const Management = () => {
         alert('This website is not available on tablet view due to the size of the images decreasing.');
         return
       }
-    };
-
-   
-    checkScreenWidth();
-
-   
-    window.addEventListener('resize', checkScreenWidth);
-
-  
+    };  checkScreenWidth();
+window.addEventListener('resize', checkScreenWidth);
     return () => {
       window.removeEventListener('resize', checkScreenWidth);
     };
   }, []);
   const [showModal, setShowModal] = useState(false);
   const [documentContent, setDocumentContent] = useState([]);
-
+ 
   
   const {
     mcqQuestions, setMcqQuestions,
@@ -45,14 +38,13 @@ const Management = () => {
     Questions, setQuestions,
     positiveMarks, negativeMarks, setPositiveMarks, setNegativeMarks,
     selectedQuestionType, setSelectedQuestionType,
-    addOptionE, setAddOptionE, Paragraphs
+    addOptionE, setAddOptionE, Paragraphs,indexCount,incrementCounter
   } = useContext(QuestionsContext);
-  let [globalQuestionCounter, setGlobalQuestionCounter] = useState(1);
   const [isInstructionsPage, setIsInstructionsPage] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [includeParagraph, setIncludeParagraph] = useState(false);
   const [includeSolution, setIncludeSolution] = useState(true);
-  const [confirmedNit, setConfirmedNit] = useState(false);
+  
   const toggleInstructionsPage = () => {
     setIsInstructionsPage(!isInstructionsPage);
   };
@@ -93,32 +85,17 @@ const Management = () => {
       updateQuestions(assertionQuestions, setAssertionQuestions);
     }
   };
-  const confirmAddParagraphQuestions = () => {
-    const confirmDialog = window.confirm("Do you want to add paragraph questions in NIT?");
-    if (confirmDialog) {
-      setConfirmedNit(true);
-    } else {
-      setConfirmedNit(false);
-    }
-  };
-  const renderComponent = () => {
-    const questionCount = {
-      Mcq: mcqQuestions.length,
-      Msq: msqQuestions.length,
-      Nit: nitQuestions.length,
-      True: trueQuestions.length,
-      Assertion: assertionQuestions.length
-    }[selectedQuestionType];
-    if (selectedQuestionType === "Nit" && includeParagraph=="true") {
-      confirm("Do you want to add paragraph questions in NIT?")
-    }
-    return (
-      <div className="question-type-components">
-        {selectedQuestionType === "Mcq" && (
+ 
+  
+  const renderQuestion = () => {
+    
+    switch (selectedQuestionType) {
+      case "Mcq":
+        return (
+          <div>
           <MCQ
-            index={questionCount}
-            questionCount={questionCount}
-            handleParaQuestionPaste={handleParaQuestionPaste}
+          
+            indexCount={indexCount}
             handlePaste={handlePaste}
             processImage={processImage}
             handleOptionPaste={handleOptionPaste}
@@ -129,82 +106,82 @@ const Management = () => {
             addOptionE={addOptionE}
             handleSave={handleSave}
           />
-        )}
-        {selectedQuestionType === "Msq" && (
-          <MSQ
-            index={questionCount}
-            questionCount={questionCount}
-            handleParaQuestionPaste={handleParaQuestionPaste}
-            handlePaste={handlePaste}
-            processImage={processImage}
-            handleOptionPaste={handleOptionPaste}
-            handleRemoveImage={handleRemoveImage}
-            removeQuestion={removeQuestion}
-            includeParagraph={includeParagraph}
-            includeSolution={includeSolution}
-            addOptionE={addOptionE}
-            handleSave={handleSave}
-          />
-        )}
-        {selectedQuestionType === "Nit" && (
-          <NIT
-            index={questionCount}
-            questionCount={questionCount}
-            handleParaQuestionPaste={handleParaQuestionPaste}
-            handlePaste={handlePaste}
-            processImage={processImage}
-            handleOptionPaste={handleOptionPaste}
-            handleRemoveImage={handleRemoveImage}
-            removeQuestion={removeQuestion}
-            includeParagraph={includeParagraph}
-            includeSolution={includeSolution}
-            addOptionE={addOptionE}
-            handleSave={handleSave}
-          />
-        )}
-        {selectedQuestionType === "True" && (
-          <True
-            index={questionCount}
-            questionCount={questionCount}
-            handleParaQuestionPaste={handleParaQuestionPaste}
-            handlePaste={handlePaste}
-            processImage={processImage}
-            handleOptionPaste={handleOptionPaste}
-            handleRemoveImage={handleRemoveImage}
-            removeQuestion={removeQuestion}
-            includeParagraph={includeParagraph}
-            includeSolution={includeSolution}
-            addOptionE={addOptionE}
-            handleSave={handleSave}
-          />
-        )}
-        {selectedQuestionType === "Assertion" && (
-          <Assertion
-            index={questionCount}
-            questionCount={questionCount}
-            handleParaQuestionPaste={handleParaQuestionPaste}
-            handlePaste={handlePaste}
-            processImage={processImage}
-            handleOptionPaste={handleOptionPaste}
-            handleRemoveImage={handleRemoveImage}
-            removeQuestion={removeQuestion}
-            includeParagraph={includeParagraph}
-            includeSolution={includeSolution}
-            addOptionE={addOptionE}
-            handleSave={handleSave}
-          />
-        )}
-        {includeParagraph &&  (
-          <ParagraphCreation
-            index={questionCount}
-            addOptionE={addOptionE}
-            includeSolution={includeSolution}
-          />
-        )}
+          {includeParagraph && <ParagraphCreation includeSolution={includeSolution}/>}
       </div>
-    );
-  };
-
+        );
+        
+      case "Msq":
+        return (
+          <div>
+              <MSQ
+           
+           indexCount={indexCount}
+           handlePaste={handlePaste}
+           processImage={processImage}
+           handleOptionPaste={handleOptionPaste}
+           handleRemoveImage={handleRemoveImage}
+           removeQuestion={removeQuestion}
+           includeParagraph={includeParagraph}
+           includeSolution={includeSolution}
+           addOptionE={addOptionE}
+           handleSave={handleSave}
+         />
+         {includeParagraph && <Paragraph/>}
+          </div>
+        
+        );
+      case "Nit":
+        return (
+          <NIT
+           
+            indexCount={indexCount}
+           
+            handlePaste={handlePaste}
+            processImage={processImage}
+            handleOptionPaste={handleOptionPaste}
+            handleRemoveImage={handleRemoveImage}
+            removeQuestion={removeQuestion}
+            includeParagraph={includeParagraph}
+            includeSolution={includeSolution}
+            addOptionE={addOptionE}
+            handleSave={handleSave}
+          />
+        );
+      case "True":
+        return (
+          <True
+           
+            indexCount={indexCount}
+            handlePaste={handlePaste}
+            processImage={processImage}
+            handleOptionPaste={handleOptionPaste}
+            handleRemoveImage={handleRemoveImage}
+            removeQuestion={removeQuestion}
+            includeParagraph={includeParagraph}
+            includeSolution={includeSolution}
+            addOptionE={addOptionE}
+            handleSave={handleSave}
+          />
+        );
+      case "Assertion":
+        return (
+          <Assertion
+            indexCount={indexCount}
+            handlePaste={handlePaste}
+            processImage={processImage}
+            handleOptionPaste={handleOptionPaste}
+            handleRemoveImage={handleRemoveImage}
+            removeQuestion={removeQuestion}
+            includeParagraph={includeParagraph}
+            includeSolution={includeSolution}
+            addOptionE={addOptionE}
+            handleSave={handleSave}
+          />
+        );
+      default:
+        return null;
+    }
+  }
   const addQuestion = () => {
     const newQuestion = {
       assertionImage: null,
@@ -220,32 +197,12 @@ const Management = () => {
         ...(addOptionE ? [{ text: "", image: null }] : []),
       ],
       type: selectedQuestionType,
-      questionNumber: globalQuestionCounter++,
+      questionNumber: indexCount
     };
-    setGlobalQuestionCounter(globalQuestionCounter + 1);
-    const updateQuestions = (questions, setQuestions) => {
-      setQuestions([...questions, newQuestion]);
-    };
-
-    switch (selectedQuestionType) {
-      case "Mcq":
-        updateQuestions(mcqQuestions, setMcqQuestions);
-        break;
-      case "Msq":
-        updateQuestions(msqQuestions, setMsqQuestions);
-        break;
-      case "Nit":
-        updateQuestions(nitQuestions, setNitQuestions);
-        break;
-      case "True":
-        updateQuestions(trueQuestions, setTrueQuestions);
-        break;
-      case "Assertion":
-        updateQuestions(assertionQuestions, setAssertionQuestions);
-        break;
-      default:
-        break;
-    }
+  
+    setQuestions([...Questions, newQuestion]);
+    incrementCounter()
+    console.log(Questions)
   };
 
   const processImage = (imageData, maxWidth, maxHeight) => {
@@ -274,80 +231,46 @@ const Management = () => {
   };
 
   const handleRemoveImage = (index, type, questionIndex = null) => {
-    const updateQuestions = (questions, setQuestions) => {
-      const updatedQuestions = [...questions];
-
-      switch (type) {
-        case "paragraph":
-          updatedQuestions[index].paragraphImage = null;
-          break;
-        case "paragraph-question":
-          if (questionIndex !== null) {
-            updatedQuestions[index].paraquestions[questionIndex].paraquestionImage = null;
-          }
-          break;
-        case "question":
-          updatedQuestions[index].questionImage = null;
-          break;
-        case "solution":
-          updatedQuestions[index].solutionImage = null;
-          break;
-        default:
-          if (type === "option" && questionIndex !== null) {
-            updatedQuestions[index].options[questionIndex].image = null;
-          }
-          break;
-      }
-
-      setQuestions(updatedQuestions);
-    };
-
-    switch (selectedQuestionType) {
-      case "Mcq":
-        updateQuestions(mcqQuestions, setMcqQuestions);
+    const updatedQuestions = [...Questions];
+  
+    switch (type) {
+      case "paragraph":
+        updatedQuestions[index].paragraphImage = null;
         break;
-      case "Msq":
-        updateQuestions(msqQuestions, setMsqQuestions);
+      case "paragraph-question":
+        if (questionIndex !== null) {
+          updatedQuestions[index].paraquestions[questionIndex].paraquestionImage = null;
+        }
         break;
-      case "Nit":
-        updateQuestions(nitQuestions, setNitQuestions);
+      case "question":
+        updatedQuestions[index].questionImage = null;
         break;
-      case "True":
-        updateQuestions(trueQuestions, setTrueQuestions);
-        break;
-      case "Assertion":
-        updateQuestions(assertionQuestions, setAssertionQuestions);
+      case "solution":
+        updatedQuestions[index].solutionImage = null;
         break;
       default:
+        if (type === "option" && questionIndex !== null) {
+          updatedQuestions[index].options[questionIndex].image = null;
+        }
         break;
     }
+  
+    setQuestions(updatedQuestions);
   };
 
-  const removeQuestion = (index) => {
-    const updateQuestions = (questions, setQuestions) => {
-      setQuestions(questions.filter((_, i) => i !== index));
-    };
+ const removeQuestion = (index) => {
+  setQuestions(prevQuestions => {
+    const updatedQuestions = [...prevQuestions];
+    updatedQuestions.splice(index, 1);
 
-    switch (selectedQuestionType) {
-      case "Mcq":
-        updateQuestions(mcqQuestions, setMcqQuestions);
-        break;
-      case "Msq":
-        updateQuestions(msqQuestions, setMsqQuestions);
-        break;
-      case "Nit":
-        updateQuestions(nitQuestions, setNitQuestions);
-        break;
-      case "True":
-        updateQuestions(trueQuestions, setTrueQuestions);
-        break;
-      case "Assertion":
-        updateQuestions(assertionQuestions, setAssertionQuestions);
-        break;
-      default:
-        break;
-    }
-  };
+    // Reassign question numbers to be sequential
+    updatedQuestions.forEach((question, i) => {
+      question.questionNumber = i + 1;
+    });
+
+    return updatedQuestions;
+  });
+};
 
   const handlePaste = (e, index) => {
     e.preventDefault();
@@ -357,31 +280,9 @@ const Management = () => {
         const file = clipboardItems[i].getAsFile();
         const reader = new FileReader();
         reader.onload = () => {
-          const updateQuestions = (questions, setQuestions) => {
-            const updatedQuestions = [...questions];
-            updatedQuestions[index].solutionImage = reader.result;
-            setQuestions(updatedQuestions);
-          };
-
-          switch (selectedQuestionType) {
-            case "Mcq":
-              updateQuestions(mcqQuestions, setMcqQuestions);
-              break;
-            case "Msq":
-              updateQuestions(msqQuestions, setMsqQuestions);
-              break;
-            case "Nit":
-              updateQuestions(nitQuestions, setNitQuestions);
-              break;
-            case "True":
-              updateQuestions(trueQuestions, setTrueQuestions);
-              break;
-            case "Assertion":
-              updateQuestions(assertionQuestions, setAssertionQuestions);
-              break;
-            default:
-              break;
-          }
+          const updatedQuestions = [...Questions];
+          updatedQuestions[index].solutionImage = reader.result;
+          setQuestions(updatedQuestions);
         };
         reader.readAsDataURL(file);
         break;
@@ -389,45 +290,6 @@ const Management = () => {
     }
   };
 
-  const handleParaQuestionPaste = (e, index, subIndex) => {
-    e.preventDefault();
-    const clipboardItems = e.clipboardData.items;
-    for (let i = 0; i < clipboardItems.length; i++) {
-      if (clipboardItems[i].type.startsWith("image/")) {
-        const file = clipboardItems[i].getAsFile();
-        const reader = new FileReader();
-        reader.onload = () => {
-          const updateQuestions = (questions, setQuestions) => {
-            const updatedQuestions = [...questions];
-            updatedQuestions[index].paraquestions[subIndex].paraquestionImage = reader.result;
-            setQuestions(updatedQuestions);
-          };
-
-          switch (selectedQuestionType) {
-            case "Mcq":
-              updateQuestions(mcqQuestions, setMcqQuestions);
-              break;
-            case "Msq":
-              updateQuestions(msqQuestions, setMsqQuestions);
-              break;
-            case "Nit":
-              updateQuestions(nitQuestions, setNitQuestions);
-              break;
-            case "True":
-              updateQuestions(trueQuestions, setTrueQuestions);
-              break;
-            case "Assertion":
-              updateQuestions(assertionQuestions, setAssertionQuestions);
-              break;
-            default:
-              break;
-          }
-        };
-        reader.readAsDataURL(file);
-        break;
-      }
-    }
-  };
  
   const handleOptionPaste = (e, index, optionIndex) => {
     e.preventDefault();
@@ -437,67 +299,24 @@ const Management = () => {
         const file = clipboardItems[i].getAsFile();
         const reader = new FileReader();
         reader.onload = () => {
-          const updateQuestions = (questions, setQuestions) => {
-            const updatedQuestions = [...questions];
-            updatedQuestions[index].options[optionIndex].image = reader.result;
-            updatedQuestions[index].options[optionIndex].text = "";
-            setQuestions(updatedQuestions);
-          };
-
-          switch (selectedQuestionType) {
-            case "Mcq":
-              updateQuestions(mcqQuestions, setMcqQuestions);
-              break;
-            case "Msq":
-              updateQuestions(msqQuestions, setMsqQuestions);
-              break;
-            case "Nit":
-              updateQuestions(nitQuestions, setNitQuestions);
-              break;
-            case "True":
-              updateQuestions(trueQuestions, setTrueQuestions);
-              break;
-            case "Assertion":
-              updateQuestions(assertionQuestions, setAssertionQuestions);
-              break;
-            default:
-              break;
-          }
+          const updatedQuestions = [...Questions];
+          updatedQuestions[index].options[optionIndex].image = reader.result;
+          updatedQuestions[index].options[optionIndex].text = "";
+          setQuestions(updatedQuestions);
         };
         reader.readAsDataURL(file);
         break;
       } else if (clipboardItems[i].type === "text/plain") {
         const text = e.clipboardData.getData("text");
-        const updateQuestions = (questions, setQuestions) => {
-          const updatedQuestions = [...questions];
-          updatedQuestions[index].options[optionIndex].text = text;
-          updatedQuestions[index].options[optionIndex].image = null;
-          setQuestions(updatedQuestions);
-        };
-
-        switch (selectedQuestionType) {
-          case "Mcq":
-            updateQuestions(mcqQuestions, setMcqQuestions);
-            break;
-          case "Msq":
-            updateQuestions(msqQuestions, setMsqQuestions);
-            break;
-          case "Nit":
-            updateQuestions(nitQuestions, setNitQuestions);
-            break;
-          case "True":
-            updateQuestions(trueQuestions, setTrueQuestions);
-            break;
-          case "Assertion":
-            updateQuestions(assertionQuestions, setAssertionQuestions);
-            break;
-          default:
-            break;
-        }
+        const updatedQuestions = [...Questions];
+        updatedQuestions[index].options[optionIndex].text = text;
+        updatedQuestions[index].options[optionIndex].image = null;
+        setQuestions(updatedQuestions);
         break;
       }
     }
   };
+  
   const handleSave = async () => {
     let sortid = 1;
     let paragraphSortid = 1;
@@ -747,7 +566,8 @@ const Management = () => {
   } catch (error) {
       console.error("Error creating the document:", error);
   }
-};
+  console.log(Paragraphs)
+}; 
   const handleEdit = () => {
     setShowModal(false);
 };
@@ -816,7 +636,7 @@ const Management = () => {
         ) : (
           <>
             <div>
-              {renderComponent()}
+            {renderQuestion()}
             </div>
             <button
               style={{ display: "block" }}
