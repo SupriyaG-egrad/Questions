@@ -1,0 +1,338 @@
+.container {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  background: #eef2f7;  /* Soft light background */
+  font-family: 'Poppins', sans-serif;
+  min-height: 100vh;
+}
+ 
+/* Sidebar Styling */
+.sidebar {
+  width: 260px;
+  background: #1f2937;  /* Dark grey-blue for a modern feel */
+  color: #f9fafb;       /* Light text for contrast */
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 4px 6px 15px rgba(0, 0, 0, 0.3);
+  position: sticky;
+  top: 20px;
+
+  transition: all 0.3s ease-in-out;
+}
+ 
+/* Sidebar Title */
+.sidebar h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #374151;
+  padding-bottom: 10px;
+  letter-spacing: 1px;
+  color: #f3f4f6;
+}
+ 
+/* Labels */
+.sidebar label {
+  display: block;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #9ca3af;
+}
+ .option-item{
+  margin-bottom: 2rem;
+ }
+/* Dropdowns and Inputs */
+.sidebar select,
+.sidebar input[type='number'] {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: #374151;
+  color: #f9fafb;
+  font-size: 1rem;
+  outline: none;
+  margin-bottom: 12px;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+ 
+.sidebar select:hover,
+.sidebar input[type='number']:hover {
+  background: #4b5563;
+}
+ 
+.sidebar select:focus,
+.sidebar input[type='number']:focus {
+  background: #6b7280;
+  transform: scale(1.02);
+}
+ 
+/* Checkbox Group */
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+ 
+.checkbox-group input {
+  transform: scale(1.2);
+  accent-color: #10b981;
+}
+ 
+.checkbox-group span {
+  font-size: 1rem;
+  color: #d1d5db;
+}
+ 
+/* Sidebar Hover Effect */
+.sidebar:hover {
+  transform: translateY(-2px);
+  box-shadow: 6px 10px 25px rgba(0, 0, 0, 0.4);
+}
+ 
+/* Marks Container (Decreased Size) */
+.marks-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0;
+  font-size: 14px;
+}
+ 
+.marks-container label {
+  font-weight: bold;
+  color: #d1d5db;
+}
+ 
+.marks-container input {
+  width: 45px;
+  height: 25px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 3px;
+  font-size: 12px;
+}
+ .url{
+  padding: 1%;
+    width: 34%;
+    border: 1px solid;
+    margin: 1%;
+    border-radius: 16px;
+ }
+/* Save Button */
+.save-button {
+  background-color: #10b981;
+  color: #ffffff;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.3s ease;
+
+  margin-top: 15px;
+}
+ 
+.save-button:hover {
+  background-color: #059669;
+  transform: translateY(-2px);
+}
+ 
+/* Main Content Styling */
+.main-content {
+  width: calc(100% - 290px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #ffffff;
+  border-radius: 15px;
+  padding: 30px;
+  box-shadow: 4px 6px 20px rgba(0, 0, 0, 0.1);
+}
+ 
+/* Question Card Styling */
+.question-item {
+  background: #f9fafb;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+ 
+.question-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 4px 8px 18px rgba(0, 0, 0, 0.15);
+}
+ 
+.question-item h3 {
+  font-size: 1.4rem;
+  color: #1f2937;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #d1d5db;
+  padding-bottom: 5px;
+}
+ 
+/* Image Pasting Areas */
+.option-box,
+.question-image-container .option-box,
+.solution-image-container .option-box {
+  border: 2px dashed #092044;
+  background: #f3f4f6;
+  padding: 20px;
+  border-radius: 8px;
+  color: #6b7280;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+}
+ 
+.option-box:hover,
+.question-image-container .option-box:hover,
+.solution-image-container .option-box:hover {
+  background: #e5e7eb;
+  border-color: #10b981;
+  transform: scale(1.03);
+  color: #374151;
+}
+ 
+.option-box img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+ 
+/* Remove Image Button */
+.remove-button {
+  background-color: #ef4444;
+  color: white;
+  padding: 8px 15px;
+  border: none;
+  border-radius: 8px;
+  margin-top: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease;
+}
+ 
+.remove-button:hover {
+  background-color: #b91c1c;
+}
+ 
+/* Selected Answer Box */
+.selected-answer-container {
+  margin-top: 20px;
+  padding: 15px;
+  background: #ecfdf5;
+  border: 2px solid #10b981;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+  color: #065f46;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+.modal-body {
+  flex-grow: 1; /* Make this section grow to take up remaining space */
+  overflow-y: auto; /* Enable vertical scrolling */
+  padding-right: 10px; /* Prevent content from being hidden behind the scrollbar */
+}
+
+ 
+/* Preview Modal (Centered) */
+.preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  overflow: hidden; /* Prevent scrolling the background */
+}
+.preview-modal .modal-content {
+  background: white;
+  border: 1px solid blue;
+  border-radius: 16px;
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 10px 50px;
+  width: 80%; /* Adjust width as needed */
+ 
+  height: 90vh; /* Fixed height */
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.preview-buttons {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 10px;
+}
+
+.question-image-container{
+  margin-bottom: 29px;
+}
+ 
+.box {
+  background-color: #2563eb;
+  border: 1px dashed #ccc;
+  padding: 10px;
+  text-align: center;
+  margin-top: 10px;
+}
+ 
+.preview-buttons .download-button:hover {
+  background-color: #059669;
+  transform: scale(1.05);
+}
+ 
+body > div.fade.preview-modal.modal.show > div{
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+body > div.fade.preview-modal.modal.show > div > div > div.modal-footer > button.btn.btn-secondary{
+  background-color: #2563eb;
+  transform: scale(1.05);
+  border-radius: 1rem;
+  padding: 0.6rem;
+}
+
+body > div.fade.preview-modal.modal.show > div > div > div.modal-footer > button.btn.btn-primary{
+  background-color: #059669;
+  transform: scale(1.05);
+  margin-left: 19px;
+    border-radius: 1rem;
+    padding: 0.5rem;
+}
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 250px;
+  }
+}
+ 
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    transform: translateX(-100%);
+  }
+.sidebar.show {
+    transform: translateX(0);
+  }
+  .preview-modal .modal-content {
+    max-width: 90%;
+    height: 65vh;
+  }
+}
