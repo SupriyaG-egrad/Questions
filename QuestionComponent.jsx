@@ -2,25 +2,28 @@ import React, { useState, useContext, useEffect } from 'react';
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, ImageRun, TextRun } from "docx";
 import './Questions.css';
-import { QuestionsContext } from './QuestionsContext.jsx';
 import PreviewModal from './PreviewModal.jsx';
 
 const Management = () => {
-
+  const [boxBackgroundColor, setBoxBackgroundColor] = useState('');
+  const [combinedItems, setCombinedItems] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [documentContent, setDocumentContent] = useState([]);
   const [positiveMarks, setPositiveMarks] = useState(0)
   const [negativeMarks, setNegativeMarks] = useState(0)
   const [Questions, setQuestions] = useState([])
   const [Paragraphs, setParagraphs] = useState([])
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // State for sidebar visibility
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [clickedBox, setClickedBox] = useState(null);
-  const [includeSolution, setIncludeSolution] = useState(true); // Option to include solution images
-
-
-  const [addOptionE, setAddOptionE] = useState(false); // State for adding Option E
-  const [includeParagraph, setIncludeParagraph] = useState(false); // State for including paragraph
-
+  const [includeSolution, setIncludeSolution] = useState(true); 
+  const [addOptionE, setAddOptionE] = useState(false);
+  const [includeParagraph, setIncludeParagraph] = useState(false);
+ // Initialize combinedItems as an empty array
+useEffect(() => {
+  setCombinedItems([]);
+  sessionStorage.setItem('combinedItems', JSON.stringify([]));
+}, []);
+  
   useEffect(() => {
     const checkScreenWidth = () => {
       const screenWidth = window.innerWidth;
@@ -34,19 +37,11 @@ const Management = () => {
       window.removeEventListener('resize', checkScreenWidth);
     };
   }, []);
+  const handleToggleIncludeParagraph = () => {
+    setIncludeParagraph(!includeParagraph);
+  };
   useEffect(() => {
-    if (includeParagraph && Paragraphs.length === 0) {
-      const defaultParagraph = {
-        questionNumber: 1,
-        paragraphImage: null,
-        paragraphSolutionImage: null,
-        questions: [], // Initialize with an empty array
-      };
-      setParagraphs([defaultParagraph]);
-    }
-  }, [includeParagraph, Paragraphs]);
-  // Initialize state with one default question
-  useEffect(() => {
+    // Initialize with one default question
     if (Questions.length === 0) {
       const defaultQuestion = {
         questionNumber: 1,
@@ -62,14 +57,120 @@ const Management = () => {
           { text: 'Option D', isCorrect: false, image: null },
         ],
         answer: '',
-        includeSolution: true, // Ensure this is set
+        url:"",
+      
       };
       setQuestions([defaultQuestion]);
     }
-  }, [Questions, setQuestions]);
 
-
-
+    // Initialize with one default paragraph
+    if (Paragraphs.length === 0) {
+      const defaultParagraph = {
+        paragraphNumber: 1,
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        questions: [
+          {
+            questionNumber: 1,
+            questionType: 'mcq',
+            paraquestionImage: null,
+            url:"",
+            paraOptions: [
+              { text: 'Option A', image: null },
+              { text: 'Option B', image: null },
+              { text: 'Option C', image: null },
+              { text: 'Option D', image: null },
+            ],
+            paraanswers: '',
+           
+          },
+        ],
+      };
+      setParagraphs([defaultParagraph]);
+    }
+    
+  }, [Questions, Paragraphs]);
+  const handleUrlChange = (index, url) => {
+    setQuestions((prevQuestions) => {
+      const updatedQuestions = [...prevQuestions];
+      updatedQuestions[index].url = url;
+      return updatedQuestions;
+    });
+  };
+  const handleSaveQuestion = (index) => {
+    const originalQuestion = JSON.parse(JSON.stringify(Questions[index]));
+  
+    // Save original question with images to session storage
+    const savedOriginalQuestions = JSON.parse(sessionStorage.getItem('originalQuestions')) || [];
+    savedOriginalQuestions.push(originalQuestion);
+    sessionStorage.setItem('originalQuestions', JSON.stringify(savedOriginalQuestions));
+  
+    // Update combinedItems with the original question
+    const updatedCombinedItems = JSON.parse(sessionStorage.getItem('combinedItems')) || [];
+    updatedCombinedItems.push(originalQuestion);
+    setCombinedItems(updatedCombinedItems);
+    sessionStorage.setItem('combinedItems', JSON.stringify(updatedCombinedItems));
+  
+    // Remove images from the displayed state
+    const question = JSON.parse(JSON.stringify(originalQuestion));
+    question.questionImage = null;
+    question.solutionImage = null;
+    question.assertionImage = null;
+    question.reasonImage = null;
+     question.answer = '';
+    question.options.forEach((option) => {
+      option.image = null;
+    });
+  
+    // Save to session storage
+    const savedQuestions = JSON.parse(sessionStorage.getItem('questions')) || [];
+    savedQuestions.push(question);
+    sessionStorage.setItem('questions', JSON.stringify(savedQuestions));
+  
+    // Update state
+    const updatedQuestions = [...Questions];
+    updatedQuestions[index] = question;
+    setQuestions(updatedQuestions);
+  };
+  const handleSaveParagraph = (index) => {
+    const originalParagraph = JSON.parse(JSON.stringify(Paragraphs[index]));
+  
+    // Save original paragraph with images to session storage
+    const savedOriginalParagraphs = JSON.parse(sessionStorage.getItem('originalParagraphs')) || [];
+    savedOriginalParagraphs.push(originalParagraph);
+    sessionStorage.setItem('originalParagraphs', JSON.stringify(savedOriginalParagraphs));
+  
+    // Update combinedItems with the original paragraph
+    const updatedCombinedItems = JSON.parse(sessionStorage.getItem('combinedItems')) || [];
+    updatedCombinedItems.push(originalParagraph);
+    setCombinedItems(updatedCombinedItems);
+    sessionStorage.setItem('combinedItems', JSON.stringify(updatedCombinedItems));
+  
+    // Remove images and answers from the displayed state
+    const paragraph = JSON.parse(JSON.stringify(originalParagraph));
+    paragraph.paragraphImage = null;
+    paragraph.paragraphSolutionImage = null;
+    paragraph.questions.forEach((question) => {
+      question.paraquestionImage = null;
+      question.paraanswers = ''; // Remove the answer
+      question.paraOptions.forEach((option) => {
+        option.image = null;
+      });
+    });
+  
+    // Log the paragraph to check if images and answers are removed
+    console.log('Paragraph after removing images and answers:', paragraph);
+  
+    // Save to session storage
+    const savedParagraphs = JSON.parse(sessionStorage.getItem('paragraphs')) || [];
+    savedParagraphs.push(paragraph);
+    sessionStorage.setItem('paragraphs', JSON.stringify(savedParagraphs));
+  
+    // Update state
+    const updatedParagraphs = [...Paragraphs];
+    updatedParagraphs[index] = paragraph;
+    setParagraphs(updatedParagraphs);
+  };
   const processImage = (imageData, maxWidth, maxHeight) => {
     const img = new Image();
     img.src = imageData;
@@ -97,23 +198,279 @@ const Management = () => {
   const handleEdit = () => {
     setShowModal(false);
   };
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(prevState => !prevState); // Toggle sidebar visibility
+  const handleParagraphUrlChange = (paragraphIndex, questionIndex, url) => {
+    const updatedParagraphs = [...Paragraphs];
+    updatedParagraphs[paragraphIndex].questions[questionIndex].url = url;
+    setParagraphs(updatedParagraphs);
   };
-  const handleSave = async () => {
-    if (includeParagraph === false) {
-      await handleSaveQuestions();
-    } else if (includeParagraph == true) {
-      await handleSaveParagraphs();
+  const handleSaveCombinedItems = async () => {
+    debugger
+    const combinedItems = JSON.parse(sessionStorage.getItem('combinedItems')) || [];
+    console.log(combinedItems)
+    let sortid = 1;
+    const questionMaxWidth = 600;
+    const questionMaxHeight = 900;
+    const optionMaxWidth = 600;
+    const optionMaxHeight = 900;
+    let Paragraphid = 1;
+    let questionid=1;
+    const docSections = [];
+  
+    for (let item of combinedItems) {
+      if (item.questionNumber) {
+        // Handle question logic
+        const questionImageTransform = item.questionImage
+          ? await processImage(item.questionImage, questionMaxWidth, questionMaxHeight)
+          : null;
+        const solutionImageTransform = item.solutionImage
+          ? await processImage(item.solutionImage, questionMaxWidth, questionMaxHeight)
+          : null;
+        const assertionImageTransform = item.assertionImage
+          ? await processImage(item.assertionImage, questionMaxWidth, questionMaxHeight)
+          : null;
+        const reasonImageTransform = item.reasonImage
+          ? await processImage(item.reasonImage, questionMaxWidth, questionMaxHeight)
+          : null;
+  
+        const questionTextRun = item.questionImage
+          ? new ImageRun({
+              data: item.questionImage.split(",")[1],
+              transformation: questionImageTransform,
+            })
+          : new TextRun(item.questionText || "");
+        const solutionTextRun = item.solutionImage
+          ? new ImageRun({
+              data: item.solutionImage.split(",")[1],
+              transformation: solutionImageTransform,
+            })
+          : new TextRun(item.solutionText || "");
+        const assertionTextRun = item.assertionImage
+          ? new ImageRun({
+              data: item.assertionImage.split(",")[1],
+              transformation: assertionImageTransform,
+            })
+          : new TextRun(item.assertionText || "");
+        const reasonTextRun = item.reasonImage
+          ? new ImageRun({
+              data: item.reasonImage.split(",")[1],
+              transformation: reasonImageTransform,
+            })
+          : new TextRun(item.reasonText || "");
+  
+        const questionPart = new TextRun({ text: "[Q] ", bold: true });
+        const solutionPart = new TextRun({ text: " [soln] ", bold: true });
+        const assertionPart = new TextRun({ text: " [assertion] ", bold: true });
+        const reasonPart = new TextRun({ text: " [reason] ", bold: true });
+  
+        const questionParagraph = new Paragraph({
+          children: [questionPart, questionTextRun],
+        });
+        const solutionParagraph = new Paragraph({
+          children: [solutionPart, solutionTextRun],
+        });
+        const assertionParagraph = new Paragraph({
+          children: [assertionPart, assertionTextRun],
+        });
+        const reasonParagraph = new Paragraph({
+          children: [reasonPart, reasonTextRun],
+        });
+  
+        const optionParagraphs = [];
+        if (item.questionType !== "nit") {
+          for (let i = 0; i < item.options.length; i++) {
+            const option = item.options[i];
+            const label = `(${String.fromCharCode(97 + i)}) `;
+            const optionTransform = option.image
+              ? await processImage(option.image, optionMaxWidth, optionMaxHeight)
+              : null;
+            optionParagraphs.push(
+              new Paragraph({
+                children: [
+                  new TextRun({ text: label, bold: true }),
+                  option.image
+                    ? new ImageRun({
+                        data: option.image.split(",")[1],
+                        transformation: optionTransform,
+                      })
+                    : new TextRun(option.text),
+                ],
+              })
+            );
+          }
+        }
+  
+        const questionSection = {
+          children: [
+            questionParagraph,
+            ...optionParagraphs,
+            new Paragraph(`[qtype] ${item.questionType.toUpperCase()}`),
+            new Paragraph({ text: `[ans] ${item.answer}`, bold: true }),
+            new Paragraph({ text: `[Marks] [+${positiveMarks}, -${negativeMarks}]`, bold: true }),
+            new Paragraph(`[sortid]  ${sortid++}`),
+            new Paragraph(`[vsoln]  ${item.url}`),
+            solutionParagraph,
+          ],
+        };
+  
+        if (item.questionType === "assertion") {
+          questionSection.children.push(assertionParagraph);
+          questionSection.children.push(reasonParagraph);
+        }
+  
+        docSections.push(questionSection);
+      } else if (item.paragraphNumber) {
+        // Handle paragraph logic
+        const paragraphImageTransform = item.paragraphImage
+          ? await processImage(item.paragraphImage, questionMaxWidth, questionMaxHeight)
+          : null;
+        const paragraphSolutionImageTransform = item.paragraphSolutionImage
+          ? await processImage(item.paragraphSolutionImage, questionMaxWidth, questionMaxHeight)
+          : null;
+  
+        const paragraphTextRun = item.paraanswers
+          ? new TextRun(item.paraanswers)
+          : "";
+  
+        const paragraphSection = {
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: "[Paragraph] ", bold: true }),
+                paragraphTextRun,
+              ],
+            }),
+          ],
+        };
+  
+        if (item.paragraphImage) {
+          const paragraphImageRun = new ImageRun({
+            data: item.paragraphImage.split(",")[1],
+            transformation: paragraphImageTransform,
+          });
+          paragraphSection.children.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: "[PRG] ", bold: true }),
+                paragraphImageRun,
+              ],
+            })
+          );
+        }
+  
+     
+        for (let questionIndex = 0; questionIndex < item.questions.length; questionIndex++) {
+          const question = item.questions[questionIndex];
+          const questionImageTransform = question.paraquestionImage
+            ? await processImage(question.paraquestionImage, questionMaxWidth, questionMaxHeight)
+            : null;
+          const questionTextRun = question.paraquestionImage
+            ? new ImageRun({
+                data: question.paraquestionImage.split(",")[1],
+                transformation: questionImageTransform,
+              })
+            : new TextRun(question.paraanswers || "");
+  
+          const questionParagraph = new Paragraph({
+            children: [
+              new TextRun({ text: `[Question ${questionIndex + 1}] `, bold: true }),
+              questionTextRun,
+            ],
+          });
+  
+          const optionParagraphs = [];
+          if (question.questionType === "truefalse") {
+            const trueOption = new Paragraph({
+              children: [
+                new TextRun({ text: "(a) True", bold: true }),
+              ],
+            });
+            const falseOption = new Paragraph({
+              children: [
+                new TextRun({ text: "() False", bold: true }),
+              ],
+            });
+            optionParagraphs.push(trueOption, falseOption);
+          } else {
+            for (let i = 0; i < question.paraOptions.length; i++) {
+              const option = question.paraOptions[i];
+              const label = `(${String.fromCharCode(65 + i)}) `;
+              const optionTransform = option.image
+                ? await processImage(option.image, optionMaxWidth, optionMaxHeight)
+                : null;
+              optionParagraphs.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: label, bold: true }),
+                    option.image
+                      ? new ImageRun({
+                          data: option.image.split(",")[1],
+                          transformation: optionTransform,
+                        })
+                      : new TextRun(option.text),
+                  ],
+                })
+              );
+            }
+          }
+  
+          paragraphSection.children.push(
+            questionParagraph,
+            ...optionParagraphs,
+            new Paragraph(`[qtype] ${question.questionType}`),
+            new Paragraph({ text: `[ans] ${question.paraanswers}`, bold: true }),
+           new Paragraph({ text: `[Marks] [+${positiveMarks}, -${negativeMarks}]`, bold: true }),
+            new Paragraph(`[sortid] ${sortid++}`),
+            new Paragraph(`[QID] ${questionid++}`),
+            new Paragraph(`[PQNO] ${Paragraphid}`),
+            new Paragraph(`[vsoln] ${question.url}`),
+          );
+          if (item.paragraphSolutionImage) {
+            const solutionImageRun = new ImageRun({
+              data: item.paragraphSolutionImage.split(",")[1],
+              transformation: paragraphSolutionImageTransform,
+            });
+            paragraphSection.children.push(
+              new Paragraph({
+                children: [
+                  new TextRun({ text: "[soln] ", bold: true }),
+                  solutionImageRun,
+                ],
+              })
+            );
+          }
+    
+        }
+  
+        Paragraphid++;
+        docSections.push(paragraphSection);
+      }
     }
-    // Clear images
+  
+    docSections.push({
+      children: [new Paragraph({ text: "[QQ]", bold: true })],
+    });
+  
+    const doc = new Document({
+      sections: docSections,
+    });
+  
+    try {
+      const blob = await Packer.toBlob(doc);
+      setDocumentContent(blob);
+      setShowModal(true);
+      alert("Document has been created successfully!");
+    } catch (error) {
+      console.error("Error creating the document:", error);
+    }
+  };
+  const handleDownload = async () => {
     setQuestions((prevQuestions) => {
       const updatedQuestions = [...prevQuestions];
       updatedQuestions.forEach((question) => {
         question.questionImage = null;
         question.solutionImage = null;
         question.assertionImage = null;
+        question.answer=""
         question.reasonImage = null;
         question.options.forEach((option) => {
           option.image = null;
@@ -125,6 +482,7 @@ const Management = () => {
       const updatedParagraphs = [...prevParagraphs];
       updatedParagraphs.forEach((paragraph) => {
         paragraph.paragraphImage = null;
+        paragraph.answer=""
         paragraph.paragraphSolutionImage = null;
         paragraph.questions.forEach((question) => {
           question.paraquestionImage = null;
@@ -135,320 +493,14 @@ const Management = () => {
       });
       return updatedParagraphs;
     });
+    // Download the document
+    const blob = new Blob([documentContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    saveAs(blob, 'document.docx');
+    setShowModal(false);
   };
-  const handleSaveQuestions = async () => {
-    let sortid = 1;
-    const questionMaxWidth = 600;
-    const questionMaxHeight = 900;
-    const optionMaxWidth = 600;
-    const optionMaxHeight = 900;
-
-    const docSections = [];
-
-    // Clone questions to avoid direct mutation and potential cyclic references
-    const clonedQuestions = JSON.parse(JSON.stringify(Questions));
-
-    for (let index = 0; index < clonedQuestions.length; index++) {
-      const question = clonedQuestions[index];
-
-      // Process question image
-      const questionImageTransform = question.questionImage
-        ? await processImage(question.questionImage, questionMaxWidth, questionMaxHeight)
-        : null;
-
-      // Process solution image
-      const solutionImageTransform = question.solutionImage
-        ? await processImage(question.solutionImage, questionMaxWidth, questionMaxHeight)
-        : null;
-
-      // Process assertion image
-      const assertionImageTransform = question.assertionImage
-        ? await processImage(question.assertionImage, questionMaxWidth, questionMaxHeight)
-        : null;
-
-      // Process reason image
-      const reasonImageTransform = question.reasonImage
-        ? await processImage(question.reasonImage, questionMaxWidth, questionMaxHeight)
-        : null;
-
-      const questionTextRun = question.questionImage
-        ? new ImageRun({
-          data: question.questionImage.split(",")[1],
-          transformation: questionImageTransform,
-        })
-        : new TextRun(question.questionText || "");
-
-      const solutionTextRun = question.solutionImage
-        ? new ImageRun({
-          data: question.solutionImage.split(",")[1],
-          transformation: solutionImageTransform,
-        })
-        : new TextRun(question.solutionText || "");
-
-      const assertionTextRun = question.assertionImage
-        ? new ImageRun({
-          data: question.assertionImage.split(",")[1],
-          transformation: assertionImageTransform,
-        })
-        : new TextRun(question.assertionText || "");
-
-      const reasonTextRun = question.reasonImage
-        ? new ImageRun({
-          data: question.reasonImage.split(",")[1],
-          transformation: reasonImageTransform,
-        })
-        : new TextRun(question.reasonText || "");
-
-      const questionPart = new TextRun({ text: "[Q] ", bold: true });
-      const solutionPart = new TextRun({ text: "    [soln] ", bold: true });
-      const assertionPart = new TextRun({ text: "    [assertion] ", bold: true });
-      const reasonPart = new TextRun({ text: "    [reason] ", bold: true });
-
-      const questionParagraph = new Paragraph({
-        children: [
-          questionPart,
-          questionTextRun,
-        ],
-      });
-
-      const solutionParagraph = new Paragraph({
-        children: [
-          solutionPart,
-          solutionTextRun,
-        ],
-      });
-
-      const assertionParagraph = new Paragraph({
-        children: [
-          assertionPart,
-          assertionTextRun,
-        ],
-      });
-
-      const reasonParagraph = new Paragraph({
-        children: [
-          reasonPart,
-          reasonTextRun,
-        ],
-      });
-
-      // Create option paragraphs
-      const optionParagraphs = [];
-      for (let i = 0; i < question.options.length; i++) {
-        const option = question.options[i];
-        const label = `(${String.fromCharCode(97 + i)}) `;
-        const optionTransform = option.image
-          ? await processImage(option.image, optionMaxWidth, optionMaxHeight)
-          : null;
-
-        optionParagraphs.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: label, bold: true }),
-              option.image
-                ? new ImageRun({
-                  data: option.image.split(",")[1],
-                  transformation: optionTransform,
-                })
-                : new TextRun(option.text),
-            ],
-          })
-        );
-      }
-
-      // Add question, options, and answer to document sections
-      const questionSection = {
-        children: [
-          questionParagraph,
-          ...optionParagraphs,
-          new Paragraph(`[qtype] ${question.questionType.toUpperCase()}`),
-          new Paragraph({ text: `[ans] ${question.answer}`, bold: true }),
-          new Paragraph({ text: `[Marks] ${positiveMarks},${negativeMarks}`, bold: true }),
-          new Paragraph(`[sortid] ${sortid++}`),
-          solutionParagraph,
-        ],
-      };
-
-      // Add assertion and reason paragraphs if the question type is 'assertion'
-      if (question.questionType === 'assertion') {
-        questionSection.children.push(assertionParagraph);
-        questionSection.children.push(reasonParagraph);
-      }
-
-      docSections.push(questionSection);
-    }
-
-    docSections.push({
-      children: [new Paragraph({ text: "[QQ]", bold: true })],
-    });
-
-    const doc = new Document({
-      sections: docSections,
-    });
-
-    try {
-      const blob = await Packer.toBlob(doc);
-      setDocumentContent(blob);
-      setShowModal(true);
-      alert("Document has been created successfully!");
-    } catch (error) {
-      console.error("Error creating the document:", error);
-    }
-  };
-  const handleSaveParagraphs = async () => {
-    let sortid = 1;
-    const questionMaxWidth = 600;
-    const questionMaxHeight = 900;
-    const optionMaxWidth = 600;
-    const optionMaxHeight = 900;
-
-    const docSections = [];
-
-    // Clone paragraphs to avoid direct mutation and potential cyclic references
-    const clonedParagraphs = JSON.parse(JSON.stringify(Paragraphs));
-
-    for (let index = 0; index < clonedParagraphs.length; index++) {
-      const paragraph = clonedParagraphs[index];
-
-      // Process paragraph-specific properties
-      const paragraphImageTransform = paragraph.paragraphImage
-        ? await processImage(paragraph.paragraphImage, questionMaxWidth, questionMaxHeight)
-        : null;
-
-      const paragraphSolutionImageTransform = paragraph.paragraphSolutionImage
-        ? await processImage(paragraph.paragraphSolutionImage, questionMaxWidth, questionMaxHeight)
-        : null;
-
-      const paragraphTextRun = paragraph.paraanswers
-        ? new TextRun(paragraph.paraanswers)
-        : ""
-
-      const paragraphSection = {
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({ text: "[Paragraph] ", bold: true }),
-              paragraphTextRun,
-            ],
-          }),
-        ],
-      };
-
-      // Add paragraph image if it exists
-      if (paragraph.paragraphImage) {
-        const paragraphImageRun = new ImageRun({
-          data: paragraph.paragraphImage.split(",")[1],
-          transformation: paragraphImageTransform,
-        });
-
-        paragraphSection.children.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: "[pImage] ", bold: true }),
-              paragraphImageRun,
-            ],
-          })
-        );
-      }
-
-      // Add paragraph solution image if it exists
-      if (paragraph.paragraphSolutionImage) {
-        const solutionImageRun = new ImageRun({
-          data: paragraph.paragraphSolutionImage.split(",")[1],
-          transformation: paragraphSolutionImageTransform,
-        });
-
-        paragraphSection.children.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: "[psoln] ", bold: true }),
-              solutionImageRun,
-            ],
-          })
-        );
-      }
-
-      // Process each question within the paragraph
-      for (let questionIndex = 0; questionIndex < paragraph.questions.length; questionIndex++) {
-        const question = paragraph.questions[questionIndex];
-
-        // Process question image
-        const questionImageTransform = question.paraquestionImage
-          ? await processImage(question.paraquestionImage, questionMaxWidth, questionMaxHeight)
-          : null;
-
-        const questionTextRun = question.paraquestionImage
-          ? new ImageRun({
-            data: question.paraquestionImage.split(",")[1],
-            transformation: questionImageTransform,
-          })
-          : new TextRun(question.paraanswers || "");
-
-        const questionParagraph = new Paragraph({
-          children: [
-            new TextRun({ text: `[Question ${questionIndex + 1}] `, bold: true }),
-            questionTextRun,
-          ],
-        });
-
-        // Create option paragraphs
-        const optionParagraphs = [];
-        for (let i = 0; i < question.paraOptions.length; i++) {
-          const option = question.paraOptions[i];
-          const label = `(${String.fromCharCode(65 + i)}) `;
-          const optionTransform = option.image
-            ? await processImage(option.image, optionMaxWidth, optionMaxHeight)
-            : null;
-
-          optionParagraphs.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: label, bold: true }),
-                option.image
-                  ? new ImageRun({
-                    data: option.image.split(",")[1],
-                    transformation: optionTransform,
-                  })
-                  : new TextRun(option.text),
-              ],
-            })
-          );
-        }
-
-        // Add question, options, and answer to document sections
-        paragraphSection.children.push(
-          questionParagraph,
-          ...optionParagraphs,
-          new Paragraph(`[qtype] ${question.questionType}`),
-          new Paragraph({ text: `[ans] ${question.paraanswers}`, bold: true }),
-          new Paragraph({ text: `[Marks] ${positiveMarks},${negativeMarks}`, bold: true }),
-          new Paragraph(`[sortid] ${sortid++}`)
-        );
-      }
-
-      docSections.push(paragraphSection);
-    }
-
-    // Final section marker
-    docSections.push({
-      children: [new Paragraph({ text: "[QQ]", bold: true })],
-    });
-
-    const doc = new Document({
-      sections: docSections,
-    });
-
-    try {
-      const blob = await Packer.toBlob(doc);
-      setDocumentContent(blob);
-      setShowModal(true);
-      alert("Document has been created successfully!");
-    } catch (error) {
-      console.error("Error creating the document:", error);
-    }
-  };
+ 
   const handleIncludeSolutionChange = () => {
-    console.log(includeSolution)
+    
     setIncludeSolution(!includeSolution);
   };
   const handleImagePaste = (e, index, questionIndex, type, isParagraph = false) => {
@@ -459,7 +511,6 @@ const Management = () => {
         const file = clipboardItems[i].getAsFile();
         const reader = new FileReader();
         reader.onload = () => {
-          console.log('Image pasted:', reader.result);
           if (isParagraph) {
             const updatedParagraphs = updateImage([...Paragraphs], index, questionIndex, null, reader.result, type, true);
 
@@ -563,41 +614,15 @@ const Management = () => {
       alert('Only numeric values and special characters are allowed for NIT questions.');
     }
   };
-
+ 
   const handleClickBox = (box) => {
     setClickedBox(box);
+ setBoxBackgroundColor(boxBackgroundColor === '#9c9cb5' ? '' : '#9c9cb5');
   };
-
   const handleAddOptionEChange = (index) => {
     setAddOptionE(!addOptionE);
   };
-  const handleParagraph = () => {
 
-    setIncludeParagraph(!includeParagraph);
-    if (!includeParagraph) {
-      setParagraphs([]);
-    } else {
-      const defaultParagraph = {
-        questionNumber: 1,
-        paragraphImage: null,
-        paragraphSolutionImage: null,
-        questions: [
-          {
-            paraOptions: [
-              { text: 'Option A', image: null },
-              { text: 'Option B', image: null },
-              { text: 'Option C', image: null },
-              { text: 'Option D', image: null },
-            ],
-            paraanswers: '',
-            paraquestionImage: '',
-            questionType: 'mcq',
-          },
-        ],
-      };
-      setParagraphs([defaultParagraph]);
-    }
-  };
   const handleRemoveImage = (index, imageType, optionIndex, isParagraph = false) => {
     console.log(`Removing image: index=${index}, type=${imageType}, optionIndex=${optionIndex}`);
 
@@ -716,81 +741,101 @@ const Management = () => {
     setParagraphs(updatedParagraphs);
   };
   const renderOptions = (question, index) => {
-    const options = addOptionE ? [...question.options, { text: 'Option E', image: null }] : question.options;
+    const options = addOptionE && !question.options.some(option => option.text === 'Option E')
+        ? [...question.options, { text: 'Option E', image: null }]
+        : question.options;
     return options.map((option, optionIndex) => (
-      <div key={optionIndex} className="option-item">
-        <label>
-          <input
-            type={question.questionType === 'mcq' || question.questionType === 'assertion' || question.questionType === 'truefalse' ? 'radio' : 'checkbox'}
-            name={`answer-${index}`}
-            onChange={() => handleAnswerChange(index, option.text, optionIndex)}
-            checked={question.questionType === 'truefalse' ? question.answer === option.text : (question.questionType === 'msq' ? question.answer.includes(String.fromCharCode(65 + optionIndex)) : question.answer === String.fromCharCode(65 + optionIndex))}
-          />
-          {option.text}
-        </label>
-        {(question.questionType === 'mcq' || question.questionType === 'assertion' || question.questionType === 'msq') && (
-          <div
-            className={`option-box ${clickedBox === `option-${index}-${optionIndex}` ? 'clicked' : ''}`}
-            onClick={() => handleClickBox(`option-${index}-${optionIndex}`)}
-            onPaste={(e) => handleImagePaste(e, index, null, `option-${optionIndex}`)}
-          >
-            {option.image ? (
-              <>
-                <img src={option.image} alt={`Option ${String.fromCharCode(65 + optionIndex)}`} style={{ maxWidth: '100%' }} />
-                <button onClick={() => handleRemoveImage(index, `option-${optionIndex}`, optionIndex)} className="remove-button">Remove</button>
-              </>
-            ) : (
-              'Paste your option image here (Ctrl+V)'
+        <div key={optionIndex} className="option-item">
+            <label>
+                <input
+                    type={question.questionType === 'mcq' || question.questionType === 'assertion' || question.questionType === 'truefalse' ? 'radio' : 'checkbox'}
+                    name={`answer-${index}`}
+                    onChange={() => handleAnswerChange(index, option.text, optionIndex)}
+                    checked={question.questionType === 'truefalse' ? question.answer === option.text : (question.questionType === 'msq' ? question.answer.includes(String.fromCharCode(65 + optionIndex)) : question.answer === String.fromCharCode(65 + optionIndex))}
+                />
+                {option.text}
+            </label>
+            {(question.questionType === 'mcq' || question.questionType === 'assertion' || question.questionType === 'msq') && (
+                <div
+                    className={`option-box ${clickedBox === `option-${index}-${optionIndex}` ? 'clicked' : ''}`}
+                    onClick={() => handleClickBox(`option-${index}-${optionIndex}`)}
+                    onPaste={(e) => handleImagePaste(e, index, null, `option-${optionIndex}`)}
+                    style={{ backgroundColor: clickedBox === `option-${index}-${optionIndex}` ? '#b6b6c5' : '' }}
+                >
+                    {option.image ? (
+                        <>
+                            <img src={option.image} alt={`Option ${String.fromCharCode(65 + optionIndex)}`} style={{ maxWidth: '100%' }} />
+                            <i onClick={() => handleRemoveImage(index, `option-${optionIndex}`, optionIndex)} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
+                        </>
+                    ) : (
+                        'Paste your option image here (Ctrl+V)'
+                    )}
+                </div>
             )}
-          </div>
-        )}
-      </div>
+        </div>
     ));
-  };
+};
   const updateImage = (updatedItems, index, questionIndex, optionIndex, readerResult, type, isParagraph) => {
     if (isParagraph) {
-      if (type === 'paragraph') {
-        updatedItems[index].paragraphImage = readerResult;
-      } else if (type === 'solution') {
-        updatedItems[index].paragraphSolutionImage = readerResult;
-      } else if (type === 'paraquestion') {
-        updatedItems[index].questions[questionIndex].paraquestionImage = readerResult;
-      } else if (typeof type === 'string' && type.startsWith('option')) {
-        const optionIndex = parseInt(type.split('-')[1]);
-        updatedItems[index].questions[questionIndex].paraOptions[optionIndex].image = readerResult;
-      }
+        if (type === 'paragraph') {
+            updatedItems[index].paragraphImage = readerResult;
+        } else if (type === 'solution') {
+            updatedItems[index].paragraphSolutionImage = readerResult;
+        } else if (type === 'paraquestion') {
+            updatedItems[index].questions[questionIndex].paraquestionImage = readerResult;
+        } else if (typeof type === 'string' && type.startsWith('option')) {
+            const optionIdx = parseInt(type.split('-')[1], 10);
+            const existingOptionE = updatedItems[index].questions[questionIndex].paraOptions.find(option => option.text === 'Option E');
+            if (existingOptionE) {
+                existingOptionE.image = readerResult;
+            } else if (optionIdx === updatedItems[index].questions[questionIndex].paraOptions.length) {
+                updatedItems[index].questions[questionIndex].paraOptions.push({ text: 'Option E', image: readerResult });
+            } else {
+                updatedItems[index].questions[questionIndex].paraOptions[optionIdx].image = readerResult;
+            }
+        }
     } else {
-      if (type === 'question') {
-        updatedItems[index].questionImage = readerResult;
-      } else if (type === 'solution') {
-        updatedItems[index].solutionImage = readerResult;
-      } else if (type === 'assertion') {
-        updatedItems[index].assertionImage = readerResult;
-      } else if (type === 'reason') {
-        updatedItems[index].reasonImage = readerResult;
-      } else if (typeof type === 'string' && type.startsWith('option')) {
-        const optionIndex = parseInt(type.split('-')[1]);
-        updatedItems[index].options[optionIndex].image = readerResult;
-      }
+        if (type === 'question') {
+            updatedItems[index].questionImage = readerResult;
+        } else if (type === 'solution') {
+            updatedItems[index].solutionImage = readerResult;
+        } else if (type === 'assertion') {
+            updatedItems[index].assertionImage = readerResult;
+        } else if (type === 'reason') {
+            updatedItems[index].reasonImage = readerResult;
+        } else if (typeof type === 'string' && type.startsWith('option')) {
+            const optionIdx = parseInt(type.split('-')[1], 10);
+            const existingOptionE = updatedItems[index].options.find(option => option.text === 'Option E');
+            if (existingOptionE) {
+                existingOptionE.image = readerResult;
+            } else if (optionIdx === updatedItems[index].options.length) {
+                updatedItems[index].options.push({ text: 'Option E', image: readerResult });
+            } else {
+                updatedItems[index].options[optionIdx].image = readerResult;
+            }
+        }
     }
     return updatedItems;
-  };
-  const renderQuestions = () => {
-    return Questions.map((question, index) => (
-      <div key={index} className="question-item">
-        <h3>{question.questionType.toUpperCase()} </h3>
+};
+const renderQuestions = () => {
+  if (Questions.length > 0) {
+    const currentQuestion = Questions[0];
+    return (
+      <div key={0} className="question-item">
+        <h3>{currentQuestion.questionType.toUpperCase()} </h3>
         {/* Question Image Section */}
         <div className="question-image-container">
           <h3>Paste Image for Question</h3>
           <div
-            className={`option-box ${clickedBox === `question-${index}` ? 'clicked' : ''}`}
-            onClick={() => handleClickBox(`question-${index}`)}
-            onPaste={(e) => handleImagePaste(e, index, null, 'question')}
+            className={`option-box ${clickedBox === `question-0` ? 'box' : ''}`}
+            onClick={() => handleClickBox(`question-0`)}
+            onPaste={(e) => handleImagePaste(e, 0, null, 'question')}
+            style={{ backgroundColor: clickedBox === `question-0` ? '#b6b6c5' : '' }}
           >
-            {question.questionImage ? (
+            {currentQuestion.questionImage ? (
               <>
-                <img src={question.questionImage} alt={`Question ${index + 1}`} style={{ maxWidth: '100%' }} />
-                <button onClick={() => handleRemoveImage(index, 'question')} className="remove-button">Remove</button>
+                <img src={currentQuestion.questionImage} alt={`Question 1`} style={{ maxWidth: '100%' }} />
+                <i onClick={() => handleRemoveImage(0, 'question')} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
               </>
             ) : (
               'Paste your question image here (Ctrl+V)'
@@ -798,19 +843,19 @@ const Management = () => {
           </div>
         </div>
         {/* Assertion and Reason Images Section */}
-        {question.questionType === 'assertion' && (
+        {currentQuestion.questionType === 'assertion' && (
           <div className="assertion-reason-container">
             <h3>Paste Image for Assertion</h3>
             <div
-              className={`option-box ${clickedBox === `assertion-${index}` ? 'clicked' : ''}`}
-              onClick={() => handleClickBox(`assertion-${index}`)}
-              onPaste={(e) => handleImagePaste(e, index, null, 'assertion')}
+              className={`option-box ${clickedBox === `assertion-0` ? 'clicked' : ''}`}
+              onClick={() => handleClickBox(`assertion-0`)}
+              onPaste={(e) => handleImagePaste(e, 0, null, 'assertion')}
+              style={{ backgroundColor: clickedBox === `assertion-0` ? '#b6b6c5' : '' }}
             >
-              {question.assertionImage ? (
+              {currentQuestion.assertionImage ? (
                 <>
-                  <img src={question.assertionImage} alt={`Assertion ${index + 1}`} style={{ maxWidth: '100%' }} />
-                  <button onClick={() => handleRemoveImage(index, 'assertion')} className="remove-button">Remove</button>
-
+                  <img src={currentQuestion.assertionImage} alt={`Assertion 1`} style={{ maxWidth: '100%' }} />
+                  <i onClick={() => handleRemoveImage(0, 'assertion')} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
                 </>
               ) : (
                 'Paste your assertion image here (Ctrl+V)'
@@ -818,14 +863,15 @@ const Management = () => {
             </div>
             <h3>Paste Image for Reason</h3>
             <div
-              className={`option-box ${clickedBox === `reason-${index}` ? 'clicked' : ''}`}
-              onClick={() => handleClickBox(`reason-${index}`)}
-              onPaste={(e) => handleImagePaste(e, index, null, 'reason')}
+              className={`option-box ${clickedBox === `reason-0` ? 'clicked' : ''}`}
+              onClick={() => handleClickBox(`reason-0`)}
+              onPaste={(e) => handleImagePaste(e, 0, null, 'reason')}
+              style={{ backgroundColor: clickedBox === `reason-0` ? '#b6b6c5' : '' }}
             >
-              {question.reasonImage ? (
+              {currentQuestion.reasonImage ? (
                 <>
-                  <img src={question.reasonImage} alt={`Reason ${index + 1}`} style={{ maxWidth: '100%' }} />
-                  <button onClick={() => handleRemoveImage(index, 'reason')} className="remove-button">Remove</button>
+                  <img src={currentQuestion.reasonImage} alt={`Reason 1`} style={{ maxWidth: '100%' }} />
+                  <i onClick={() => handleRemoveImage(0, 'reason')} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
                 </>
               ) : (
                 'Paste your reason image here (Ctrl+V)'
@@ -834,23 +880,26 @@ const Management = () => {
           </div>
         )}
         {/* Options Section */}
-        {question.questionType !== 'nit' && question.questionType !== 'assertion' && (
-          renderOptions(question, index)
+        {currentQuestion.questionType !== 'nit' && currentQuestion.questionType !== 'assertion' && (
+          renderOptions(currentQuestion, 0)
         )}
-        {question.questionType === 'assertion' && (
-          renderOptions(question, index)
+        {currentQuestion.questionType === 'assertion' && (
+          renderOptions(currentQuestion, 0)
         )}
         {/* NIT Answer Box */}
-        {question.questionType === 'nit' && (
+        {currentQuestion.questionType === 'nit' && (
           <div className="nit-answer-container">
             <label>Answer:</label>
             <input
+              style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }}
               className='input-field'
               type="text"
-              value={question.answer}
-              onChange={(e) => handleNITAnswerChange(index, e.target.value)}
+              value={currentQuestion.answer}
+              placeholder='Enter Answer here'
+              onChange={(e) => handleNITAnswerChange(0, e.target.value)}
               pattern="[0-9]*"
             />
+            <div><b>Entered Answer</b>: {currentQuestion.answer}</div>
           </div>
         )}
         {/* Solution Image Section */}
@@ -858,14 +907,15 @@ const Management = () => {
           <div className="solution-image-container">
             <h3>Paste Image for Solution</h3>
             <div
-              className={`option-box ${clickedBox === `solution-${index}` ? 'clicked' : ''}`}
-              onClick={() => handleClickBox(`solution-${index}`)}
-              onPaste={(e) => handleImagePaste(e, index, null, 'solution')}
+              className={`option-box ${clickedBox === `solution-0` ? 'clicked' : ''}`}
+              onClick={() => handleClickBox(`solution-0`)}
+              onPaste={(e) => handleImagePaste(e, 0, null, 'solution')}
+              style={{ backgroundColor: clickedBox === `solution-0` ? '#b6b6c5' : '' }}
             >
-              {question.solutionImage ? (
+              {currentQuestion.solutionImage ? (
                 <>
-                  <img src={question.solutionImage} alt={`Solution ${index + 1}`} style={{ maxWidth: '100%' }} />
-                  <button onClick={() => handleRemoveImage(index, 'solution')} className="remove-button">Remove</button>
+                  <img src={currentQuestion.solutionImage} alt={`Solution 1`} style={{ maxWidth: '100%' }} />
+                  <i onClick={() => handleRemoveImage(0, 'solution')} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
                 </>
               ) : (
                 'Paste your solution image here (Ctrl+V)'
@@ -873,46 +923,63 @@ const Management = () => {
             </div>
           </div>
         )}
+        <label>URL:</label>
+<input
+  className='url'
+  type="text"
+  value={currentQuestion.url}
+  onChange={(e) => handleUrlChange(0, e.target.value)}
+  placeholder="Enter URL here"
+/>
         {/* Selected Answer Box */}
         <div className="selected-answer-container">
-          {question.questionType !== 'nit' && <label>Selected Answer:</label>}
-          {question.questionType === 'mcq' && (
-            <input type="text" className='selectedAnswerInput' value={question.answer} readOnly />
+          {currentQuestion.questionType !== 'nit' && <label>Selected Answer:</label>}
+          {currentQuestion.questionType === 'mcq' && (
+            <input style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }} type="text" className='selectedAnswerInput' value={currentQuestion.answer} readOnly />
           )}
-          {question.questionType === 'msq' && (
-            <input type="text" className='selectedAnswerInput' value={question.answer.split(',').join(', ')} readOnly />
+          {currentQuestion.questionType === 'msq' && (
+            <input style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }} type="text" className='selectedAnswerInput' value={currentQuestion.answer.split(',').join(', ')} readOnly />
           )}
-          {question.questionType === 'truefalse' && (
-            <input type="text" className='selectedAnswerInput' value={question.answer} readOnly />
+          {currentQuestion.questionType === 'truefalse' && (
+            <input style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }} type="text" className='selectedAnswerInput' value={currentQuestion.answer} readOnly />
           )}
-          {question.questionType === 'assertion' && (
-            <input type="text" className='selectedAnswerInput' value={question.answer} readOnly />
+          {currentQuestion.questionType === 'assertion' && (
+            <input style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }} type="text" className='selectedAnswerInput' value={currentQuestion.answer} readOnly />
           )}
         </div>
+        <button className="save-button mcq-container" onClick={() => handleSaveQuestion(0)}>Save Question</button>
       </div>
-    ));
-  };
-  const renderParagraphs = () => {
-    return Paragraphs.map((paragraph, paragraphIndex) => (
-      <div key={paragraphIndex} className="paragraph-section">
+    );
+  } else {
+    return null;
+  }
+};
+const renderParagraphs = () => {
+  if (Paragraphs.length > 0) {
+    const currentParagraph = Paragraphs[0];
+    return (
+      <div key={0} className="paragraph-section">
         <h3>Paragraph</h3>
         <input
+         style={{padding:"12px",border:"2px solid black ",borderRadius:"21px",width:"98%"}}
           className="input-field"
           type="number"
-          onChange={(e) => handleNumQuestionsChange(paragraphIndex, e.target.value)}
+          onChange={(e) => handleNumQuestionsChange(0, e.target.value)}
           placeholder="Number of Questions for paragraph"
         />
+     
         <div className="paragraph-image-container">
           <h3>Paste Image for Paragraph</h3>
           <div
-            className={`option-box ${clickedBox === `paragraph-image-${paragraphIndex}` ? 'clicked' : ''}`}
-            onClick={() => setClickedBox(`paragraph-image-${paragraphIndex}`)}
-            onPaste={(e) => handleImagePaste(e, paragraphIndex, null, 'paragraph', true)}
+            className={`option-box ${clickedBox === `paragraph-image-0` ? 'clicked' : ''}`}
+            onClick={() => setClickedBox(`paragraph-image-0`)}
+            onPaste={(e) => handleImagePaste(e, 0, null, 'paragraph', true)}
+            style={{ backgroundColor: clickedBox === `paragraph-image-0` ? '#b6b6c5' : '' }}
           >
-            {paragraph.paragraphImage ? (
+            {currentParagraph.paragraphImage ? (
               <>
-                <img src={paragraph.paragraphImage} alt="Paragraph" style={{ maxWidth: '100%' }} />
-                <button onClick={() => handleRemoveImage(paragraphIndex, 'paraquestion', questionIndex, true)} className="remove-button">Remove Image</button>
+                <img src={currentParagraph.paragraphImage} alt="Paragraph" style={{ maxWidth: '100%' }} />
+                <i onClick={() => handleRemoveImage(0, 'paragraph', null, true)} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
               </>
             ) : (
               'Paste your paragraph image here (Ctrl+V)'
@@ -923,14 +990,15 @@ const Management = () => {
           <div className="solution-image-container">
             <h3>Paste Image for Solution</h3>
             <div
-              className={`option-box ${clickedBox === `solution-image-${paragraphIndex}` ? 'clicked' : ''}`}
-              onClick={() => setClickedBox(`solution-image-${paragraphIndex}`)}
-              onPaste={(e) => handleImagePaste(e, paragraphIndex, null, 'solution', true)}
+              className={`option-box ${clickedBox === `solution-image-0` ? 'clicked' : ''}`}
+              onClick={() => setClickedBox(`solution-image-0`)}
+              onPaste={(e) => handleImagePaste(e, 0, null, 'solution', true)}
+              style={{ backgroundColor: clickedBox === `solution-image-0` ? '#b6b6c5' : '' }}
             >
-              {paragraph.paragraphSolutionImage ? (
+              {currentParagraph.paragraphSolutionImage ? (
                 <>
-                  <img src={paragraph.paragraphSolutionImage} alt="Solution" style={{ maxWidth: '100%' }} />
-                  <button onClick={() => handleRemoveImage(paragraphIndex, 'solution', null, true)} className="remove-button">Remove Image</button>
+                  <img src={currentParagraph.paragraphSolutionImage} alt="Solution" style={{ maxWidth: '100%' }} />
+                  <i onClick={() => handleRemoveImage(0, 'solution', null, true)} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
                 </>
               ) : (
                 'Paste your solution image here (Ctrl+V)'
@@ -938,20 +1006,21 @@ const Management = () => {
             </div>
           </div>
         )}
-        {paragraph.questions?.map((question, questionIndex) => (
+        {currentParagraph.questions.map((question, questionIndex) => (
           <div key={questionIndex} className="question-section">
             <h4>Question {questionIndex + 1}</h4>
             <div className="question-image-container">
               <h3>Paste Image for Question</h3>
               <div
-                className={`option-box ${clickedBox === `question-${paragraphIndex}-${questionIndex}` ? 'clicked' : ''}`}
-                onClick={() => setClickedBox(`question-${paragraphIndex}-${questionIndex}`)}
-                onPaste={(e) => handleImagePaste(e, paragraphIndex, questionIndex, 'paraquestion', true)}
+                className={`option-box ${clickedBox === `question-0-${questionIndex}` ? 'clicked' : ''}`}
+                onClick={() => setClickedBox(`question-0-${questionIndex}`)}
+                onPaste={(e) => handleImagePaste(e, 0, questionIndex, 'paraquestion', true)}
+                style={{ backgroundColor: clickedBox === `question-0-${questionIndex}` ? '#b6b6c5' : '' }}
               >
                 {question.paraquestionImage ? (
                   <>
                     <img src={question.paraquestionImage} alt={`Question ${questionIndex + 1}`} style={{ maxWidth: '100%' }} />
-                    <button onClick={() => handleRemoveImage(paragraphIndex, 'paraquestion', questionIndex, true)} className="remove-button">Remove Image</button>
+                    <i onClick={() => handleRemoveImage(0, 'paraquestion', questionIndex, true)} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
                   </>
                 ) : (
                   'Paste your question image here (Ctrl+V)'
@@ -960,91 +1029,99 @@ const Management = () => {
             </div>
             <label>Select Question Type:</label>
             <select
+             style={{padding:"10px",margin:"10px",width:"16%",borderRadius:"12px"}}
               value={question.questionType}
-              onChange={(e) => handleParagraphQuestionTypeChange(paragraphIndex, questionIndex, e.target.value)}
+              onChange={(e) => handleParagraphQuestionTypeChange(0, questionIndex, e.target.value)}
             >
               <option value="mcq">MCQ</option>
               <option value="msq">MSQ</option>
               <option value="nit">NIT</option>
               <option value="truefalse">True/False</option>
             </select>
-            <h4>Options</h4>
             {question.questionType === 'truefalse' ? (
               <div className="truefalse-options">
                 <label>
                   <input
                     type="radio"
-                    name={`option-${paragraphIndex}-${questionIndex}`}
+                    name={`option-0-${questionIndex}`}
                     value="True"
-                    onChange={() => handleParagraphAnswerChange(paragraphIndex, questionIndex, 'True')}
+                    onChange={() => handleParagraphAnswerChange(0, questionIndex, 'True')}
                   />
                   True
                 </label>
                 <label>
                   <input
                     type="radio"
-                    name={`option-${paragraphIndex}-${questionIndex}`}
+                    name={`option-0-${questionIndex}`}
                     value="False"
-                    onChange={() => handleParagraphAnswerChange(paragraphIndex, questionIndex, 'False')}
+                    onChange={() => handleParagraphAnswerChange(0, questionIndex, 'False')}
                   />
                   False
                 </label>
-
               </div>
-            ) : question.questionType === 'nit' ? (
-              <>
+            ) :  question.questionType === 'nit' ? (
+              <div className="nit-answer-container">
+                <label>Answer:</label>
                 <input
+                  style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }}
+                  className='input-field'
                   type="text"
                   value={question.paraanswers}
-                  onChange={(e) => handleParagraphAnswerChange(paragraphIndex, questionIndex, e.target.value)}
-                  placeholder="Enter numeric answer"
+                  placeholder='Enter Answer here'
+                  onChange={(e) => handleParagraphAnswerChange(0, questionIndex, e.target.value)}
+                  pattern="[0-9]*"
                 />
-                <div className="selected-answer-box">
-                  Entered Answer: {question.paraanswers || 'Enter numeric answer'}
-                </div>
-              </>
+                <div><b>Entered Answer</b>: {question.paraanswers}</div>
+              </div>
             ) : (
-              <>
-                {question.paraOptions.map((option, optionIndex) => (
-                  <div key={optionIndex} className="option-item">
-                    <label>
-                      <input
-                        name={`option-${paragraphIndex}-${questionIndex}`}
-                        type={question.questionType === 'msq' ? 'checkbox' : 'radio'}
-                        onChange={() => handleParagraphAnswerChange(paragraphIndex, questionIndex, String.fromCharCode(65 + optionIndex), optionIndex)}
-                      />
-                      Option {String.fromCharCode(65 + optionIndex)}
-                    </label>
-                    <div
-                      className={`option-box ${clickedBox === `option-${paragraphIndex}-${questionIndex}-${optionIndex}` ? 'clicked' : ''}`}
-                      onClick={() => setClickedBox(`option-${paragraphIndex}-${questionIndex}-${optionIndex}`)}
-                      onPaste={(e) => handleImagePaste(e, paragraphIndex, questionIndex, `option-${optionIndex}`, true)}
-                    >
-                      {option.image ? (
-                        <div>
-                          <img src={option.image} alt={`Option ${String.fromCharCode(65 + optionIndex)}`} style={{ maxWidth: '100%' }} />
-                          <button onClick={() => handleRemoveImage(paragraphIndex, `option-${optionIndex}`, questionIndex, true)} className="remove-button">Remove Image</button>
-                        </div>
-                      ) : (
-                        'Paste your option image here (Ctrl+V)'
-                      )}
-                    </div>
+              question.paraOptions.map((option, optionIndex) => (
+                <div key={optionIndex} className="option-item">
+                  <label>
+                    <input
+                      name={`option-0-${questionIndex}`}
+                      type={question.questionType === 'msq' ? 'checkbox' : 'radio'}
+                      onChange={() => handleParagraphAnswerChange(0, questionIndex, String.fromCharCode(65 + optionIndex), optionIndex)}
+                    />
+                 <b> Option {String.fromCharCode(65 + optionIndex)}</b>  
+                  </label>
+                  <div
+                    className={`option-box ${clickedBox === `option-0-${questionIndex}-${optionIndex}` ? 'clicked' : ''}`}
+                    onClick={() => setClickedBox(`option-0-${questionIndex}-${optionIndex}`)}
+                    onPaste={(e) => handleImagePaste(e, 0, questionIndex, `option-${optionIndex}`, true)}
+                    style={{ backgroundColor: clickedBox === `option-0-${questionIndex}-${optionIndex}` ? '#b6b6c5' : '' }}
+                  >
+                    {option.image ? (
+                      <>
+                        <img src={option.image} alt={`Option ${String.fromCharCode(65 + optionIndex)}`} style={{ maxWidth: '100%' }} />
+                        <i onClick={() => handleRemoveImage(0, `option-${optionIndex}`, questionIndex, true)} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
+                      </>
+                    ) : (
+                      'Paste your option image here (Ctrl+V)'
+                    )}
                   </div>
-                ))}
-
-              </>
+                </div>
+              ))
             )}
+            <label>URL:</label>
+            <input
+               className='url'
+              type="text"
+              value={question.url}
+              onChange={(e) => handleParagraphUrlChange(0, questionIndex, e.target.value)}
+              placeholder="Enter URL here"
+            />
           </div>
         ))}
-
+        <button className="save-button mcq-container" onClick={() => handleSaveParagraph(0)}>Save Paragraph</button>
       </div>
-    ));
-  };
+    );
+  } else {
+    return null;
+  }
+};
   return (
     <div className="container">
-      <button onClick={toggleSidebar} className="sidebar-toggle">
-        ☰ {/* Menu Icon */}
-      </button>
+    
       <div className={`sidebar ${isSidebarOpen ? 'show' : ''}`}>
         <h3>Question Management :</h3>
         <label>Question Type:</label>
@@ -1088,7 +1165,7 @@ const Management = () => {
             <input
               type="checkbox"
               checked={includeParagraph}
-              onChange={handleParagraph}
+              onClick={handleToggleIncludeParagraph}
             />
             <span style={{ marginLeft: "18px", fontSize: "larger" }}>Include Paragraph</span>
           </div>
@@ -1098,19 +1175,24 @@ const Management = () => {
         {includeParagraph == false && renderQuestions()}
         {includeParagraph && renderParagraphs()}
         {Questions.length > 0 && (
-          <div>
+          <div style={{display:"flex",justifyContent:"center"}}>
+          
             <button
               style={{ display: "block" }}
               className="save-button mcq-container"
-              onClick={handleSave}
+              onClick={handleSaveCombinedItems}
             >
               Save Docx
             </button>
+       
+        
+
             <PreviewModal
-              show={showModal}
-              handleClose={() => setShowModal(false)}
-              documentContent={documentContent}
-              handleEdit={handleEdit}
+             show={showModal}
+             handleClose={() => setShowModal(false)}
+             documentContent={documentContent}
+             handleEdit={handleEdit}
+             handleDownload={handleDownload}
             />
 
           </div>
