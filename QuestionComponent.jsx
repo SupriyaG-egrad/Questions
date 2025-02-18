@@ -1,1220 +1,1711 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { saveAs } from "file-saver";
-import { Document, Packer, Paragraph, ImageRun, TextRun } from "docx";
-import './Questions.css';
-import PreviewModal from './PreviewModal.jsx';
-
-const Management = () => {
-  const [boxBackgroundColor, setBoxBackgroundColor] = useState('');
-  const [combinedItems, setCombinedItems] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [documentContent, setDocumentContent] = useState([]);
-  const [positiveMarks, setPositiveMarks] = useState(0)
-  const [negativeMarks, setNegativeMarks] = useState(0)
-  const [Questions, setQuestions] = useState([])
-  const [Paragraphs, setParagraphs] = useState([])
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [clickedBox, setClickedBox] = useState(null);
-  const [includeSolution, setIncludeSolution] = useState(true);
-  const [addOptionE, setAddOptionE] = useState(false);
-  const [includeParagraph, setIncludeParagraph] = useState(false);
-  // Initialize combinedItems as an empty array
-  useEffect(() => {
-    setCombinedItems([]);
-    sessionStorage.setItem('combinedItems', JSON.stringify([]));
-  }, []);
-
-  useEffect(() => {
-    const checkScreenWidth = () => {
-      const screenWidth = window.innerWidth;
-      if (screenWidth >= 768 && screenWidth <= 1024) {
-        alert('This website is not available on tablet view due to the size of the images decreasing.');
-      }
-    };
-    checkScreenWidth();
-    window.addEventListener('resize', checkScreenWidth);
-    return () => {
-      window.removeEventListener('resize', checkScreenWidth);
-    };
-  }, []);
-  const handleToggleIncludeParagraph = () => {
-    setIncludeParagraph(!includeParagraph);
-  };
-  useEffect(() => {
-    // Initialize with one default question
-    if (Questions.length === 0) {
-      const defaultQuestion = {
-        questionNumber: 1,
-        questionType: 'mcq',
+import { Document, Packer, TextRun, Paragraph, ImageRun, AlignmentType } from "docx";
+import Modal from './Modal';
+const examConfig = {
+  "JEE Mains": {
+    sections: [
+      { name: "Section A", questionCount: 20, questionType: "MCQ" },
+      { name: "Section B", questionCount: 10, questionType: "NAT" },
+      { name: "Full Document upload" },
+    ],
+  },
+  "BITSAT": {
+    subjects: [
+      "Physics",
+      "Chemistry",
+      "Mathematics",
+      "English Proficiency && Logical Reasoning",
+      "FullDocumentUpload",
+      "Extra Question Physics",
+      "Extra Question Chemistry",
+      "Extra Question Mathematics",
+      "Extra Question English Proficiency && Logical Reasoning"
+    ],
+    questionCounts: {
+      "Physics": 30,
+      "Chemistry": 30,
+      "Mathematics": 40,
+      "English Proficiency && Logical Reasoning": 40,
+      "Extra Question Physics": 3,
+      "Extra Question Chemistry": 3,
+      "Extra Question Mathematics": 3,
+      "Extra Question English Proficiency && Logical Reasoning": 3
+    },
+    questionTypes: {
+      "Physics": "MCQ",
+      "Chemistry": "MCQ",
+      "Mathematics": "MCQ",
+      "English Proficiency && Logical Reasoning": "Paragraph",
+      "Extra Question Physics": "MCQ",
+      "Extra Question Chemistry": "MCQ",
+      "Extra Question Mathematics": "MCQ",
+      "Extra Question English Proficiency && Logical Reasoning": "Paragraph"
+    },
+  },
+  "NEET": {
+    subjects: ["Physics", "Chemistry", "Biology", "full DocumentUpload"],
+    questionCount: 45,
+    questionType: "MCQ",
+  },
+};
+const labelTypes = {
+  letters: {
+    display: 'Alphabets (a, b, c)',
+    getLabel: (index) => String.fromCharCode(97 + index)
+  },
+  numbers: {
+    display: 'Numbers (1, 2, 3)',
+    getLabel: (index) => (index + 1).toString()
+  },
+  roman: {
+    display: 'Roman Numerals (I, II, III)',
+    getLabel: (index) => ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][index] || (index + 1).toString()
+  },
+  uppercase: {
+    display: 'Uppercase (A, B, C)',
+    getLabel: (index) => String.fromCharCode(65 + index)
+  }
+};
+const generateFormFields = (examType, sectionOrSubject) => {
+  const config = examConfig[examType];
+  let fields = [];
+  if (examType === "JEE Mains") {
+    if (sectionOrSubject === "Full Document upload") {
+      fields.push(...Array.from({ length: 20 }, (_, i) => ({
+        section: "Section A",
+        type: "MCQ",
+        index: i,
         questionImage: null,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
         solutionImage: null,
-        assertionImage: null,
-        reasonImage: null,
-        options: [
-          { text: 'Option A', isCorrect: false, image: null },
-          { text: 'Option B', isCorrect: false, image: null },
-          { text: 'Option C', isCorrect: false, image: null },
-          { text: 'Option D', isCorrect: false, image: null },
-        ],
-        answer: '',
-        url: "",
-
-      };
-      setQuestions([defaultQuestion]);
-    }
-
-    // Initialize with one default paragraph
-    if (Paragraphs.length === 0) {
-      const defaultParagraph = {
-        paragraphNumber: 1,
+        answer: "",
         paragraphImage: null,
-        questions: [
-          {
-            questionNumber: 1,
-            questionType: 'mcq',
-            paraquestionImage: null,
-            url: "",
-            solution: "",
-            paraOptions: [
-              { text: 'Option A', image: null },
-              { text: 'Option B', image: null },
-              { text: 'Option C', image: null },
-              { text: 'Option D', image: null },
-            ],
-            paraanswers: '',
-
-          },
-        ],
-      };
-      setParagraphs([defaultParagraph]);
-    }
-
-  }, [Questions, Paragraphs]);
-  const handleUrlChange = (index, url) => {
-    setQuestions((prevQuestions) => {
-      const updatedQuestions = [...prevQuestions];
-      updatedQuestions[index].url = url;
-      return updatedQuestions;
-    });
-  };
-  const handleSaveQuestion = (index) => {
-    const originalQuestion = JSON.parse(JSON.stringify(Questions[index]));
-
-    // Save original question with images to session storage
-    const savedOriginalQuestions = JSON.parse(sessionStorage.getItem('originalQuestions')) || [];
-    savedOriginalQuestions.push(originalQuestion);
-    sessionStorage.setItem('originalQuestions', JSON.stringify(savedOriginalQuestions));
-
-    // Update combinedItems with the original question
-    const updatedCombinedItems = JSON.parse(sessionStorage.getItem('combinedItems')) || [];
-    updatedCombinedItems.push(originalQuestion);
-    setCombinedItems(updatedCombinedItems);
-    sessionStorage.setItem('combinedItems', JSON.stringify(updatedCombinedItems));
-
-    // Remove images from the displayed state
-    const question = JSON.parse(JSON.stringify(originalQuestion));
-    question.questionImage = null;
-    question.solutionImage = null;
-    question.assertionImage = null;
-    question.reasonImage = null;
-    question.answer = '';
-    question.options.forEach((option) => {
-      option.image = null;
-    });
-
-    // Save to session storage
-    const savedQuestions = JSON.parse(sessionStorage.getItem('questions')) || [];
-    savedQuestions.push(question);
-    sessionStorage.setItem('questions', JSON.stringify(savedQuestions));
-
-    // Update state
-    const updatedQuestions = [...Questions];
-    updatedQuestions[index] = question;
-    setQuestions(updatedQuestions);
-  };
-  const handleSaveParagraph = (index) => {
-    const originalParagraph = JSON.parse(JSON.stringify(Paragraphs[index]));
-
-    // Save original paragraph with images to session storage
-    const savedOriginalParagraphs = JSON.parse(sessionStorage.getItem('originalParagraphs')) || [];
-    savedOriginalParagraphs.push(originalParagraph);
-    sessionStorage.setItem('originalParagraphs', JSON.stringify(savedOriginalParagraphs));
-
-    // Update combinedItems with the original paragraph
-    const updatedCombinedItems = JSON.parse(sessionStorage.getItem('combinedItems')) || [];
-    updatedCombinedItems.push(originalParagraph);
-    setCombinedItems(updatedCombinedItems);
-    sessionStorage.setItem('combinedItems', JSON.stringify(updatedCombinedItems));
-
-    // Remove images and answers from the displayed state
-    const paragraph = JSON.parse(JSON.stringify(originalParagraph));
-    paragraph.paragraphImage = null;
-    paragraph.paragraphSolutionImage = null;
-    paragraph.questions.forEach((question) => {
-      question.paraquestionImage = null;
-      question.paraanswers = ''; // Remove the answer
-      question.paraOptions.forEach((option) => {
-        option.image = null;
-      });
-    });
-
-    // Log the paragraph to check if images and answers are removed
-    console.log('Paragraph after removing images and answers:', paragraph);
-
-    // Save to session storage
-    const savedParagraphs = JSON.parse(sessionStorage.getItem('paragraphs')) || [];
-    savedParagraphs.push(paragraph);
-    sessionStorage.setItem('paragraphs', JSON.stringify(savedParagraphs));
-
-    // Update state
-    const updatedParagraphs = [...Paragraphs];
-    updatedParagraphs[index] = paragraph;
-    setParagraphs(updatedParagraphs);
-  };
-  const processImage = (imageData, maxWidth, maxHeight) => {
-    const img = new Image();
-    img.src = imageData;
-
-    return new Promise((resolve) => {
-      img.onload = () => {
-        const { naturalWidth, naturalHeight } = img;
-        let width = naturalWidth;
-        let height = naturalHeight;
-
-        if (naturalWidth > maxWidth || naturalHeight > maxHeight) {
-          if (naturalWidth / maxWidth > naturalHeight / maxHeight) {
-            width = maxWidth;
-            height = Math.round((naturalHeight / naturalWidth) * maxWidth);
-          } else {
-            height = maxHeight;
-            width = Math.round((naturalWidth / naturalHeight) * maxHeight);
-          }
-        }
-
-        resolve({ width, height });
-      };
-    });
-  };
-  const handleEdit = () => {
-    setShowModal(false);
-  };
-  // Handle paragraph logic
-  const handleParagraphUrlChange = (paragraphIndex, questionIndex, url) => {
-    handleParagraphAnswerChange(paragraphIndex, questionIndex, url, null, 'url');
-  };
-
-  const handleParagraphSolutionChange = (paragraphIndex, questionIndex, solution) => {
-    handleParagraphAnswerChange(paragraphIndex, questionIndex, solution, null, 'solution');
-  };
-  const handleSaveCombinedItems = async () => {
-    debugger
-    const combinedItems = JSON.parse(sessionStorage.getItem('combinedItems')) || [];
-    console.log(combinedItems)
-    let sortid = 1;
-    const questionMaxWidth = 600;
-    const questionMaxHeight = 900;
-    const optionMaxWidth = 600;
-    const optionMaxHeight = 900;
-    let Paragraphid = 1;
-    let questionid = 1;
-    const docSections = [];
-
-    for (let item of combinedItems) {
-      if (item.questionNumber) {
-        // Handle question logic
-        const questionImageTransform = item.questionImage
-          ? await processImage(item.questionImage, questionMaxWidth, questionMaxHeight)
-          : null;
-        const solutionImageTransform = item.solutionImage
-          ? await processImage(item.solutionImage, questionMaxWidth, questionMaxHeight)
-          : null;
-        const assertionImageTransform = item.assertionImage
-          ? await processImage(item.assertionImage, questionMaxWidth, questionMaxHeight)
-          : null;
-        const reasonImageTransform = item.reasonImage
-          ? await processImage(item.reasonImage, questionMaxWidth, questionMaxHeight)
-          : null;
-
-        const questionTextRun = item.questionImage
-          ? new ImageRun({
-            data: item.questionImage.split(",")[1],
-            transformation: questionImageTransform,
-          })
-          : new TextRun(item.questionText || "");
-        const solutionTextRun = item.solutionImage
-          ? new ImageRun({
-            data: item.solutionImage.split(",")[1],
-            transformation: solutionImageTransform,
-          })
-          : new TextRun(item.solutionText || "");
-        const assertionTextRun = item.assertionImage
-          ? new ImageRun({
-            data: item.assertionImage.split(",")[1],
-            transformation: assertionImageTransform,
-          })
-          : new TextRun(item.assertionText || "");
-        const reasonTextRun = item.reasonImage
-          ? new ImageRun({
-            data: item.reasonImage.split(",")[1],
-            transformation: reasonImageTransform,
-          })
-          : new TextRun(item.reasonText || "");
-
-        const questionPart = new TextRun({ text: "[Q] ", bold: true });
-        const solutionPart = new TextRun({ text: " [soln] ", bold: true });
-        const assertionPart = new TextRun({ text: " [statement-I] ", bold: true });
-        const reasonPart = new TextRun({ text: " [statement-II] ", bold: true });
-
-        const questionParagraph = new Paragraph({
-          children: [questionPart, questionTextRun],
+        paragraphSolutionImage: null,
+        url: "",
+      })));
+      fields.push(...Array.from({ length: 10 }, (_, i) => ({
+        section: "Section B",
+        type: "NAT",
+        index: i,
+        questionImage: null,
+        options: undefined,
+        solutionImage: null,
+        answer: "",
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        url: "",
+      })));
+    } else {
+      const section = config.sections.find(sec => sec.name === sectionOrSubject);
+      for (let i = 0; i < section.questionCount; i++) {
+        fields.push({
+          section: section.name,
+          type: section.questionType,
+          index: i,
+          questionImage: null,
+          options: section.questionType === "MCQ" || section.questionType === "MSQ" ?
+            Array.from({ length: 4 }, () => ({ image: null })) : undefined,
+          solutionImage: null,
+          answer: section.questionType === "MSQ" ? [] : "",
+          paragraphImage: null,
+          paragraphSolutionImage: null,
+          url: "",
         });
-        const solutionParagraph = new Paragraph({
-          children: [solutionPart, solutionTextRun],
-        });
-        const assertionParagraph = new Paragraph({
-          children: [assertionPart, assertionTextRun],
-        });
-        const reasonParagraph = new Paragraph({
-          children: [reasonPart, reasonTextRun],
-        });
-
-        const optionParagraphs = [];
-        if (item.questionType !== "nit") {
-          for (let i = 0; i < item.options.length; i++) {
-            const option = item.options[i];
-            const label = `(${String.fromCharCode(97 + i)}) `;
-            const optionTransform = option.image
-              ? await processImage(option.image, optionMaxWidth, optionMaxHeight)
-              : null;
-            optionParagraphs.push(
-              new Paragraph({
-                children: [
-                  new TextRun({ text: label, bold: true }),
-                  option.image
-                    ? new ImageRun({
-                      data: option.image.split(",")[1],
-                      transformation: optionTransform,
-                    })
-                    : new TextRun(option.text),
-                ],
-              })
-            );
-          }
-        }
-
-        const questionSection = {
-          children: [
-            questionParagraph,
-            ...optionParagraphs,
-            new Paragraph(`[qtype] ${item.questionType.toUpperCase()}`),
-            new Paragraph({ text: `[ans] ${item.answer}`, bold: true }),
-            new Paragraph({ text: `[Marks] [+${positiveMarks}, -${negativeMarks}]`, bold: true }),
-            new Paragraph(`[sortid]  ${sortid++}`),
-            new Paragraph(`[vsoln]  ${item.url}`),
-            solutionParagraph,
-          ],
-        };
-
-        if (item.questionType === "assertion") {
-          questionSection.children.push(assertionParagraph);
-          questionSection.children.push(reasonParagraph);
-        }
-
-        docSections.push(questionSection);
-      } else if (item.paragraphNumber) {
-        // Handle paragraph logic
-        const paragraphImageTransform = item.paragraphImage
-          ? await processImage(item.paragraphImage, questionMaxWidth, questionMaxHeight)
-          : null;
-
-
-        const paragraphTextRun = item.paraanswers
-          ? new TextRun(item.paraanswers)
-          : "";
-
-        const paragraphSection = {
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun({ text: "[Paragraph] ", bold: true }),
-                paragraphTextRun,
-              ],
-            }),
-          ],
-        };
-
-        if (item.paragraphImage) {
-          const paragraphImageRun = new ImageRun({
-            data: item.paragraphImage.split(",")[1],
-            transformation: paragraphImageTransform,
-          });
-          paragraphSection.children.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: "[PRG] ", bold: true }),
-                paragraphImageRun,
-              ],
-            })
-          );
-        }
-
-
-        for (let questionIndex = 0; questionIndex < item.questions.length; questionIndex++) {
-          const question = item.questions[questionIndex];
-          const questionImageTransform = question.paraquestionImage
-            ? await processImage(question.paraquestionImage, questionMaxWidth, questionMaxHeight)
-            : null;
-          const questionTextRun = question.paraquestionImage
-            ? new ImageRun({
-              data: question.paraquestionImage.split(",")[1],
-              transformation: questionImageTransform,
-            })
-            : new TextRun(question.paraanswers || "");
-
-          const questionParagraph = new Paragraph({
-            children: [
-              new TextRun({ text: `[Question ${questionIndex + 1}] `, bold: true }),
-              questionTextRun,
-            ],
-          });
-
-          const optionParagraphs = [];
-          if (question.questionType === "truefalse") {
-            const trueOption = new Paragraph({
-              children: [
-                new TextRun({ text: "(a) True", bold: true }),
-              ],
-            });
-            const falseOption = new Paragraph({
-              children: [
-                new TextRun({ text: "() False", bold: true }),
-              ],
-            });
-            optionParagraphs.push(trueOption, falseOption);
-          } else {
-            for (let i = 0; i < question.paraOptions.length; i++) {
-              const option = question.paraOptions[i];
-              const label = `(${String.fromCharCode(65 + i)}) `;
-              const optionTransform = option.image
-                ? await processImage(option.image, optionMaxWidth, optionMaxHeight)
-                : null;
-              optionParagraphs.push(
-                new Paragraph({
-                  children: [
-                    new TextRun({ text: label, bold: true }),
-                    option.image
-                      ? new ImageRun({
-                        data: option.image.split(",")[1],
-                        transformation: optionTransform,
-                      })
-                      : new TextRun(option.text),
-                  ],
-                })
-              );
-            }
-          }
-
-          paragraphSection.children.push(
-            questionParagraph,
-            ...optionParagraphs,
-            new Paragraph(`[Qtype] "CTQ"`),
-            new Paragraph(`[qtype] ${question.questionType}`),
-
-            new Paragraph({ text: `[ans] ${question.paraanswers}`, bold: true }),
-            new Paragraph({ text: `[Marks] [+${positiveMarks}, -${negativeMarks}]`, bold: true }),
-            new Paragraph(`[sortid] ${sortid++}`),
-            new Paragraph(`[QID] ${questionid++}`),
-            new Paragraph(`[PQNO] ${Paragraphid}`),
-            new Paragraph(`[vsoln] ${question.url}`),
-            new Paragraph({
-              children: [
-                new TextRun({ text: "[soln] ", bold: true }),
-                question.solution
-                  ? new ImageRun({
-                    data: question.solution.split(",")[1],
-                    transformation: await processImage(question.solution, questionMaxWidth, questionMaxHeight),
-                  })
-                  : new TextRun(""),
-              ],
-            }),
-          );
-        }
-
-        Paragraphid++;
-        docSections.push(paragraphSection);
       }
     }
+  } else if (examType === "BITSAT") {
+    if (sectionOrSubject === "FullDocumentUpload") {
+      fields.push(...Array.from({ length: 30 }, (_, i) => ({
+        section: "Physics",
+        type: "MCQ",
+        index: i,
+        questionImage: null,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
+        solutionImage: null,
+        answer: "",
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        url: "",
+      })));
+      fields.push(...Array.from({ length: 30 }, (_, i) => ({
+        section: "Chemistry",
+        type: "MCQ",
+        index: i,
+        questionImage: null,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
+        solutionImage: null,
+        answer: "",
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        url: "",
+      })));
+      fields.push(...Array.from({ length: 40 }, (_, i) => ({
+        section: "Mathematics",
+        type: "MCQ",
+        index: i,
+        questionImage: null,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
+        solutionImage: null,
+        answer: "",
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        url: "",
+      })));
+      fields.push(...Array.from({ length: 40 }, (_, i) => ({
+        section: "English Proficiency && Logical Reasoning",
+        type: "Paragraph",
+        index: i,
+        paragraphImage: null,
+        questionCount: 1,
+        questions: Array.from({ length: 1 }, () => ({
+          type: "MCQ",
+          questionImage: null,
+          options: Array.from({ length: 4 }, () => ({ image: null })),
+          solutionImage: null,
+          answer: "",
+          url: ""
+        }))
+      })));
+      fields.push(...Array.from({ length: 3 }, (_, i) => ({
+        section: "Extra Question Physics",
+        type: "MCQ",
+        index: i,
+        questionImage: null,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
+        solutionImage: null,
+        answer: "",
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        url: "",
+      })));
 
-    docSections.push({
-      children: [new Paragraph({ text: "[QQ]", bold: true })],
+      fields.push(...Array.from({ length: 3 }, (_, i) => ({
+        section: "Extra Question Chemistry",
+        type: "MCQ",
+        index: i,
+        questionImage: null,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
+        solutionImage: null,
+        answer: "",
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        url: "",
+      })));
+
+      fields.push(...Array.from({ length: 3 }, (_, i) => ({
+        section: "Extra Question Mathematics",
+        type: "MCQ",
+        index: i,
+        questionImage: null,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
+        solutionImage: null,
+        answer: "",
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        url: "",
+      })));
+      fields.push(...Array.from({ length: 3 }, (_, i) => ({
+        section: "Extra Question English Proficiency && Logical Reasoning",
+        type: "Paragraph",
+        index: i,
+        paragraphImage: null,
+        questionCount: 1,
+        questions: Array.from({ length: 1 }, () => ({
+          type: "MCQ",
+          questionImage: null,
+          options: Array.from({ length: 4 }, () => ({ image: null })),
+          solutionImage: null,
+          answer: "",
+          url: ""
+        }))
+      })));
+    } else {
+      const questionCount = config.questionCounts[sectionOrSubject];
+      const questionType = config.questionTypes[sectionOrSubject];
+      for (let i = 0; i < questionCount; i++) {
+        fields.push({
+          section: sectionOrSubject,
+          type: questionType,
+          index: i,
+          questionImage: null,
+          options: questionType === "MCQ" || questionType === "MSQ" ?
+            Array.from({ length: 4 }, () => ({ image: null })) : undefined,
+          solutionImage: null,
+          answer: questionType === "MSQ" ? [] : "",
+          paragraphImage: null,
+          paragraphSolutionImage: null,
+          url: "",
+        });
+
+      }
+    }
+  } else if (examType === "NEET") {
+    if (sectionOrSubject === "full DocumentUpload") {
+      fields.push(...Array.from({ length: 45 }, (_, i) => ({
+        section: "Physics",
+        type: "MCQ",
+        index: i,
+        questionImage: null,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
+        solutionImage: null,
+        answer: "",
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        url: "",
+      })));
+      fields.push(...Array.from({ length: 45 }, (_, i) => ({
+        section: "Chemistry",
+        type: "MCQ",
+        index: i,
+        questionImage: null,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
+        solutionImage: null,
+        answer: "",
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        url: "",
+      })));
+      fields.push(...Array.from({ length: 45 }, (_, i) => ({
+        section: "Biology",
+        type: "MCQ",
+        index: i,
+        questionImage: null,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
+        solutionImage: null,
+        answer: "",
+        paragraphImage: null,
+        paragraphSolutionImage: null,
+        url: "",
+      })));
+    } else {
+      for (let i = 0; i < config.questionCount; i++) {
+        fields.push({
+          section: sectionOrSubject,
+          type: config.questionType,
+          index: i,
+          questionImage: null,
+          options: Array.from({ length: 4 }, () => ({ image: null })),
+          solutionImage: null,
+          answer: "",
+          paragraphImage: null,
+          paragraphSolutionImage: null,
+          url: "",
+        });
+      }
+    }
+  }
+  return fields;
+};
+const handleImage = (e, setImage) => {
+  e.preventDefault();
+  const clipboardItems = e.clipboardData.items;
+  for (let i = 0; i < clipboardItems.length; i++) {
+    if (clipboardItems[i].type.startsWith("image/")) {
+      const file = clipboardItems[i].getAsFile();
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImage(reader.result);
+      };
+      reader.readAsDataURL(file);
+      break;
+    }
+  }
+};
+const ImageBox = ({ image, onPaste, onClick, onRemove, label, style, isActive = true, disabledMessage = "" }) => {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <div
+      style={{
+        ...style,
+        border: `2px dashed ${isFocused ? '#1a5a99' : isActive ? '#3498db' : '#ccc'}`,
+        backgroundColor: isFocused ? '#e3f2fd' : (image ? "#f0f0f0" : "transparent"),
+        opacity: isActive ? 1 : 0.6,
+        pointerEvents: isActive ? 'all' : 'none',
+        position: 'relative',
+        padding: "10px",
+        textAlign: "center",
+        cursor: "pointer",
+        marginTop: "10px",
+        minHeight: "100px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        transition: 'all 0.2s ease',
+        cursor: isActive ? 'pointer' : 'not-allowed',
+      }}
+      title={!isActive ? disabledMessage : ''}
+      onPaste={isActive ? onPaste : undefined}
+      onClick={(e) => {
+        if (isActive) {
+          onClick?.(e);
+          setIsFocused(true);
+        }
+      }}
+      onBlur={() => setIsFocused(false)}
+      tabIndex={isActive ? 0 : -1}
+    >
+      {!isActive && (
+        <div style={{
+          position: 'absolute',
+          bottom: '100%',
+          left: 0,
+          background: '#ff4444',
+          color: 'white',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '0.8em'
+        }}>
+          {disabledMessage}
+        </div>
+      )}
+      {image ? (
+        <div style={{ position: "relative" }}>
+          <img src={image} alt={label} style={{ maxWidth: "100%", maxHeight: "200px", objectFit: "contain" }} />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            style={{
+              position: "absolute",
+              top: "5px",
+              right: "5px",
+              background: "red",
+              color: "white",
+              border: "none",
+              borderRadius: "50%",
+              cursor: "pointer"
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ) : (
+        <div>
+          <p style={{ margin: 0 }}>Paste {label} image (Ctrl+V)</p>
+          <p style={{
+            margin: 0,
+            fontSize: "0.8em",
+            color: isFocused ? '#1a5a99' : "#666",
+            fontWeight: isFocused ? 600 : 400
+          }}>
+            Click to focus
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+const questionContainerStyle = {
+  marginBottom: "40px",
+  padding: "20px",
+  border: "1px solid #eee",
+  borderRadius: "8px"
+};
+const optionsGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, 1fr)",
+  gap: "20px",
+  marginTop: "15px"
+};
+const inputStyle = {
+  transform: "scale(1.2)"
+};
+const numericInputStyle = {
+  width: "100%",
+  padding: "10px",
+  borderRadius: "6px",
+  border: "2px solid #ced4da",
+  fontSize: "16px"
+};
+const answerDisplayStyle = {
+  padding: "12px",
+  backgroundColor: "#e9ecef",
+  borderRadius: "6px",
+  fontWeight: "bold",
+  color: "#2b8a3e",
+  marginTop: "20px"
+};
+const OptionWrapper = ({ children, isActive }) => (
+  <div style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "10px",
+    backgroundColor: "#f8f9fa",
+    borderRadius: "8px",
+    cursor: isActive ? 'pointer' : 'not-allowed'
+  }}>
+    {children}
+  </div>
+);
+const updateQuestionType = (question, newType) => {
+  const baseQuestion = {
+    ...question,
+    type: newType,
+    answer: "",
+    options: []
+
+  };
+
+  switch (newType) {
+    case 'MCQ':
+      return { ...baseQuestion, options: Array.from({ length: 4 }, () => ({ image: null })) };
+    case 'MSQ':
+      return { ...baseQuestion, options: Array.from({ length: 4 }, () => ({ image: null })), answer: [] };
+    case 'NAT':
+      return { ...baseQuestion, options: undefined };
+    case 'TF':
+      return {
+        ...baseQuestion, options: [
+          { image: null, label: "True" },
+          { image: null, label: "False" }
+        ]
+      };
+    default:
+      return baseQuestion
+  }
+};
+const ParagraphQuestion = ({ question, onChange, index, containerRef, labelType }) => {
+  const [numQuestions, setNumQuestions] = useState(question.questionCount || 0);
+
+  const handleQuestionCountChange = (count) => {
+    const newCount = Math.max(1, parseInt(count) || 1);
+    setNumQuestions(newCount);
+    const currentQuestions = question.questions || [];
+
+    const newQuestions = Array.from({ length: newCount }, (_, i) =>
+      i < currentQuestions.length
+        ? currentQuestions[i]
+        : {
+          type: "MCQ",
+          questionImage: null,
+          options: Array.from({ length: 4 }, () => ({ image: null })),
+          solutionImage: null,
+          answer: ""
+        }
+    );
+
+    onChange({
+      ...question,
+      questionCount: newCount,
+      questions: newQuestions
     });
+  };
 
-    const doc = new Document({
-      sections: docSections,
-    });
+  return (
+    <div style={questionContainerStyle}>
+      <h4>Paragraph {index + 1}</h4>
+      <div style={{ margin: "10px 0" }}>
+        <label>Number of Questions: </label>
+        <input
+          type="number"
+          value={numQuestions}
+          onChange={(e) => handleQuestionCountChange(e.target.value)}
+          min="1"
+          style={{
+            padding: "8px",
+            width: "60px",
+            marginLeft: "10px"
+          }}
+        />
+      </div>
+      <ImageBox
+        image={question.paragraphImage}
+        onPaste={(e) => handleImage(e, (img) => onChange({ ...question, paragraphImage: img }))}
+        onRemove={() => onChange({ ...question, paragraphImage: null })}
+        label="paragraph"
+      />
+      <h4 style={{ marginTop: 20 }}>Related Questions:</h4>
+      {(question.questions || []).map((subQuestion, subIndex) => (
+        <div key={subIndex} style={{ marginTop: 15, padding: 15, border: "1px solid #ddd", borderRadius: 8 }}>
+          <QuestionTypeSelector
+            value={subQuestion.type}
+            onChange={(newType) => {
+              const updatedSub = updateQuestionType(subQuestion, newType);
+              const newQuestions = [...question.questions];
+              newQuestions[subIndex] = updatedSub;
+              onChange({ ...question, questions: newQuestions });
+            }}
+          />
+          <QuestionRenderer
+            question={subQuestion}
+            onChange={(updatedSub) => {
+              const newQuestions = [...question.questions];
+              newQuestions[subIndex] = updatedSub;
+              onChange({ ...question, questions: newQuestions });
+            }}
+            index={subIndex}
+            containerRef={containerRef}
+            labelType={labelType}
+          />
 
-    try {
-      const blob = await Packer.toBlob(doc);
-      setDocumentContent(blob);
-      setShowModal(true);
-      alert("Document has been created successfully!");
-    } catch (error) {
-      console.error("Error creating the document:", error);
+        </div>
+      ))}
+    </div>
+  );
+};
+const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }) => {
+
+  const getOptionLabel = (index) => {
+    switch (labelType) {
+      case 'roman':
+        return ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][index] || (index + 1).toString();
+      case 'numbers':
+        return (index + 1).toString();
+      case 'uppercase':
+        return String.fromCharCode(65 + index);
+      default: // letters
+        return String.fromCharCode(97 + index);
     }
   };
-  const handleDownload = async () => {
-    setQuestions((prevQuestions) => {
-      const updatedQuestions = [...prevQuestions];
-      updatedQuestions.forEach((question) => {
-        question.questionImage = null;
-        question.solutionImage = null;
-        question.assertionImage = null;
-        question.answer = ""
-        question.reasonImage = null;
-        question.options.forEach((option) => {
-          option.image = null;
-        });
-      });
-      return updatedQuestions;
+  // Use this label in both UI and document generation
+  const [validationState, setValidationState] = useState({
+    questionImage: !!question.questionImage,
+    options: question.options?.map(opt => !!opt.image) || [],
+    solutionImage: !!question.solutionImage,
+    url: !!question.url
+  });
+
+  // In QuestionRenderer component
+  useEffect(() => {
+    const answerValid = question.type === 'MSQ'
+      ? question.answer.length > 0
+      : question.type === 'NAT'
+        ? question.answer.trim() !== ''
+        : question.answer !== '';
+
+    setValidationState({
+      questionImage: !!question.questionImage,
+      options: question.options?.map(opt => !!opt.image) || [],
+      solutionImage: !!question.solutionImage,
+      url: !!question.url,
+      answer: answerValid
     });
-    setParagraphs((prevParagraphs) => {
-      const updatedParagraphs = [...prevParagraphs];
-      updatedParagraphs.forEach((paragraph) => {
-        paragraph.paragraphImage = null;
-        paragraph.answer = ""
-        paragraph.paragraphSolutionImage = null;
-        paragraph.questions.forEach((question) => {
-          question.paraquestionImage = null;
-          question.paraOptions.forEach((option) => {
-            option.image = null;
-          });
-        });
-      });
-      return updatedParagraphs;
-    });
-    // Download the document
-    const blob = new Blob([documentContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    saveAs(blob, 'document.docx');
-    setShowModal(false);
+  }, [question]);
+
+  // Updated isValid calculation
+  const isValid = validationState.questionImage &&
+    validationState.solutionImage &&
+    validationState.answer &&
+    (question.type === 'NAT' || validationState.options.every(opt => opt));
+  const ProgressBar = () => {
+    const isNAT = question.type === 'NAT';
+    const steps = [
+      validationState.questionImage,
+      ...(isNAT ? [] : validationState.options),
+      validationState.solutionImage,
+      validationState.answer,
+      validationState.url
+    ].filter(Boolean);
+
+    return (
+      <div style={{ width: '100%', height: '8px', backgroundColor: '#eee', borderRadius: '4px', margin: '10px 0' }}>
+        <div style={{
+          width: `${(steps.length / (isNAT ? 4 : 4 + (question.options?.length || 0))) * 100}%`,
+          height: '100%',
+          backgroundColor: '#2ecc71',
+          borderRadius: '4px',
+          transition: 'width 0.3s ease'
+        }} />
+      </div>
+    );
   };
 
-  const handleIncludeSolutionChange = () => {
-
-    setIncludeSolution(!includeSolution);
-  };
-  const handleImagePaste = (e, index, questionIndex, type, isParagraph = false) => {
+  const handleImage = (e, setImage) => {
     e.preventDefault();
+    const container = containerRef.current;
+    const scrollPosition = container?.scrollTop || 0;
     const clipboardItems = e.clipboardData.items;
     for (let i = 0; i < clipboardItems.length; i++) {
-      if (clipboardItems[i].type.startsWith('image/')) {
+      if (clipboardItems[i].type.startsWith("image/")) {
         const file = clipboardItems[i].getAsFile();
         const reader = new FileReader();
         reader.onload = () => {
-          if (isParagraph) {
-            const updatedParagraphs = updateImage([...Paragraphs], index, questionIndex, null, reader.result, type, true);
-
-            setParagraphs(updatedParagraphs);
-          } else {
-            const updatedQuestions = updateImage([...Questions], index, questionIndex, null, reader.result, type, false);
-
-            setQuestions(updatedQuestions);
-          }
+          setImage(reader.result);
         };
         reader.readAsDataURL(file);
         break;
       }
     }
+    setTimeout(() => {
+      if (container) container.scrollTop = scrollPosition;
+    }, 0);
   };
 
-  const handleSidebarQuestionTypeChange = (index, newType) => {
-    setQuestions((prevQuestions) => {
-      const updatedQuestions = [...prevQuestions];
-      const question = updatedQuestions[index];
-      question.answer = ''; // Reset the answer
+  const renderOptions = () => {
+    const getOptionStatus = (optionIndex) => {
+      if (optionIndex === 0) return !!question.questionImage;
+      return question.options[optionIndex - 1]?.image;
+    };
 
-      question.questionType = newType;
-      if (newType === 'truefalse') {
-        question.options = [
-          { text: 'True', image: null },
-          { text: 'False', image: null },
-        ];
-      } else if (newType === 'nit') {
-        question.answer = '';
-      } else if (newType === 'assertion') {
-        question.assertionImage = null;
-        question.reasonImage = null;
-        question.options = [
-          { text: 'Option A', image: null },
-          { text: 'Option B', image: null },
-          { text: 'Option C', image: null },
-          { text: 'Option D', image: null },
-        ];
-      } else if (newType === 'mcq') {
-        question.options = [
-          { text: 'Option A', image: null },
-          { text: 'Option B', image: null },
-          { text: 'Option C', image: null },
-          { text: 'Option D', image: null },
-        ];
-      } else if (newType === 'msq') {
-        question.options = [
-          { text: 'Option A', image: null },
-          { text: 'Option B', image: null },
-          { text: 'Option C', image: null },
-          { text: 'Option D', image: null },
-        ];
-      }
+    switch (question.type) {
+      case 'MCQ':
+      case 'MSQ':
+        return (
+          <>
+            <h4>Options{question.type === 'MSQ' && ' (Multiple Select)'}:</h4>
+            <div style={optionsGridStyle}>
+              {question.options.map((option, i) => {
+                const isActive = getOptionStatus(i);
+                const isLastOption = i === question.options.length - 1;
+                const isComplete = option.image && (
+                  isLastOption ||
+                  (i < question.options.length - 1 && !question.options[i + 1].image)
+                );
 
-      return updatedQuestions;
-    });
-  };
-  const handleAnswerChange = (index, answer, optionIndex) => {
+                return (
+                  <OptionWrapper
+                    key={i}
+                    isActive={isActive}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "10px",
+                      backgroundColor: "#f8f9fa",
+                      borderRadius: "8px",
+                      pointerEvents: isActive ? 'all' : 'none',
+                    }}
+                  >
+                    <input
+                      type={question.type === 'MCQ' ? 'radio' : 'checkbox'}
+                      name={`${question.type}-${question.index}`}
+                      onChange={(e) => {
+                        const newAnswers = question.type === 'MCQ'
+                          ? e.target.value
+                          : e.target.checked
+                            ? [...question.answer, e.target.value]
+                            : question.answer.filter(ans => ans !== e.target.value);
+                        onChange({ ...question, answer: newAnswers });
+                      }}
+                      value={getOptionLabel(i).toUpperCase()}
+                      checked={question.answer === getOptionLabel(i).toUpperCase()}
+                      style={inputStyle}
+                      disabled={!isActive}
+                    />
+                    <span>{getOptionLabel(i)}.</span>
+                    <ImageBox
+                      image={option.image}
+                      onPaste={isActive ? (e) => handleImage(e, (image) => {
+                        const newOptions = [...question.options];
+                        newOptions[i].image = image;
+                        onChange({ ...question, options: newOptions });
+                      }) : undefined}
+                      onRemove={() => {
+                        const newOptions = [...question.options];
+                        newOptions[i].image = null;
+                        onChange({ ...question, options: newOptions });
+                      }}
+                      label={`option ${getOptionLabel(i)}`}  // Also fix here
+                      isActive={isActive}
+                      disabledMessage={i === 0
+                        ? "Complete question image first"
+                        : `Complete option ${getOptionLabel(i - 1)} first`}  // And here
+                      style={{
+                        flex: 1,
+                        marginTop: 0,
+                        border: `2px solid ${isComplete ? "#2ecc71" : isActive ? "#3498db" : "#ccc"}`
+                      }}
+                    />
+                  </OptionWrapper>
 
-    setQuestions((prevQuestions) => {
-      const updatedQuestions = [...prevQuestions];
-      const question = updatedQuestions[index];
+                );
+              })}
+            </div>
+          </>
+        );
 
-      if (question.questionType === 'mcq') {
-        question.answer = String.fromCharCode(65 + optionIndex); // Use the option letter (A, B, C, etc.)
-      } else if (question.questionType === 'truefalse') {
-        question.answer = answer; // Use the text value (True/False)
-      } else if (question.questionType === 'assertion') {
-        question.answer = String.fromCharCode(65 + optionIndex); // Use the option letter (A, B, C, etc.)
-      } else if (question.questionType === 'msq') {
-
-        const selectedOptions = question.answer ? question.answer.split(',') : [];
-
-        const newOption = String.fromCharCode(65 + optionIndex);
-
-        if (selectedOptions.length < 2) {
-          // Add the option if it's not already selected
-          if (!selectedOptions.includes(newOption)) {
-            question.answer = [...selectedOptions, newOption].join(',');
-          }
-        } else if (selectedOptions.length === 2 && !selectedOptions.includes(newOption)) {
-          // Show an alert message if the user tries to select a third option
-          alert("You can only select up to 2 options for MSQ questions.");
-        }
-
-      }
-
-      return updatedQuestions;
-    });
-  };
-  const handleNITAnswerChange = (index, answer) => {
-    const regex = /^[^a-zA-Z]*$/; // Regular expression to allow everything except alphabets
-    if (regex.test(answer)) {
-      setQuestions((prevQuestions) => {
-        const updatedQuestions = [...prevQuestions];
-        updatedQuestions[index].answer = answer;
-        return updatedQuestions;
-      });
-    } else {
-      alert('Only numeric values and special characters are allowed for NIT questions.');
-    }
-  };
-
-  const handleClickBox = (box) => {
-    setClickedBox(box);
-    setBoxBackgroundColor(boxBackgroundColor === '#9c9cb5' ? '' : '#9c9cb5');
-  };
-  const handleAddOptionEChange = (index) => {
-    setAddOptionE(!addOptionE);
-  };
-
-  const handleRemoveImage = (index, imageType, questionIndex, optionIndex, isParagraph = false) => {
-
-
-    if (imageType === null || imageType === undefined) {
-
-      return;
-    }
-
-    if (isParagraph) {
-      setParagraphs((prevParagraphs) => {
-        const updatedParagraphs = [...prevParagraphs];
-
-        if (imageType === 'paragraph') {
-          updatedParagraphs[index].paragraphImage = null;
-        } else if (imageType === 'solution') {
-          updatedParagraphs[index].questions[questionIndex].solution = null;
-        } else if (imageType === 'paraquestion') {
-          updatedParagraphs[index].questions[questionIndex].paraquestionImage = null;
-        } else if (imageType === 'url') {
-          updatedParagraphs[index].questions[questionIndex].url = null;
-        } else if (typeof imageType === 'string' && imageType.startsWith('option')) {
-          const optionIdx = parseInt(imageType.split('-')[1], 10);
-          updatedParagraphs[index].questions[questionIndex].paraOptions[optionIdx].image = null;
-        }
-
-        return updatedParagraphs;
-      });
-    } else {
-      setQuestions((prevQuestions) => {
-        const updatedQuestions = [...prevQuestions];
-
-        if (imageType === 'question') {
-          updatedQuestions[index].questionImage = null;
-        } else if (imageType === 'assertion') {
-          updatedQuestions[index].assertionImage = null;
-        } else if (imageType === 'reason') {
-          updatedQuestions[index].reasonImage = null;
-        } else if (imageType === 'solution') {
-          updatedQuestions[index].solutionImage = null;
-        } else if (typeof imageType === 'string' && imageType.startsWith('option')) {
-          const optionIdx = parseInt(imageType.split('-')[1], 10);
-          updatedQuestions[index].options[optionIdx].image = null;
-        }
-
-        return updatedQuestions;
-      });
-    }
-  };
-  const handleNumQuestionsChange = (paragraphIndex, value) => {
-    const updatedParagraphs = [...Paragraphs];
-    const numQuestions = Math.max(1, parseInt(value) || 1);
-    const currentParagraph = updatedParagraphs[paragraphIndex] || { questions: [] };
-
-    while (currentParagraph.questions.length < numQuestions) {
-      currentParagraph.questions.push({
-        paraOptions: [
-          { text: 'Option A', image: null },
-          { text: 'Option B', image: null },
-          { text: 'Option C', image: null },
-          { text: 'Option D', image: null },
-        ],
-        paraanswers: '',
-        paraquestionImage: '',
-        questionType: 'mcq',
-        questionNumber: currentParagraph.questions.length + 1,
-      });
-    }
-
-    while (currentParagraph.questions.length > numQuestions) {
-      currentParagraph.questions.pop();
-    }
-
-    updatedParagraphs[paragraphIndex] = currentParagraph;
-    setParagraphs(updatedParagraphs);
-  };
-  const handleParagraphQuestionTypeChange = (paragraphIndex, questionIndex, type) => {
-    console.log(Paragraphs);
-    const updatedParagraphs = [...Paragraphs];
-    updatedParagraphs[paragraphIndex].questions[questionIndex].questionType = type;
-    updatedParagraphs[paragraphIndex].questions[questionIndex].paraanswers = ''; // Reset the answer
-
-    setParagraphs(updatedParagraphs);
-  };
-  const handleParagraphAnswerChange = (paragraphIndex, questionIndex, newAnswer, optionIndex = null, type = null) => {
-    const updatedParagraphs = [...Paragraphs];
-    const question = updatedParagraphs[paragraphIndex].questions[questionIndex];
-    const questionType = question.questionType;
-
-    if (type === 'url') {
-      question.url = newAnswer;
-    } else if (type === 'solution') {
-      question.solution = newAnswer;
-    } else {
-      if (questionType === 'mcq') {
-        question.paraanswers = String.fromCharCode(65 + optionIndex); // Use the option letter (A, B, C, etc.)
-      } else if (questionType === 'msq') {
-        const selectedOptions = question.paraanswers ? question.paraanswers.split(',') : [];
-        const newOption = String.fromCharCode(65 + optionIndex);
-
-        if (selectedOptions.includes(newOption)) {
-          // Remove the option if it was already selected
-          question.paraanswers = selectedOptions.filter(option => option !== newOption).join(',');
-        } else {
-          // Add the option if it was not selected
-          question.paraanswers = [...selectedOptions, newOption].join(',');
-
-          // Limit the number of selected options to 2
-          if (question.paraanswers.split(',').length > 2) {
-            question.paraanswers = selectedOptions.join(',');
-            alert('You can only select up to 2 options for MSQ questions.');
-          }
-        }
-      } else if (questionType === 'truefalse') {
-        question.paraanswers = newAnswer; // Use the text value (True/False)
-      } else if (questionType === 'nit') {
-        if (/^[^a-zA-Z]*$/.test(newAnswer)) {
-          question.paraanswers = newAnswer; // Use the numeric value
-        } else {
-          alert('Only numbers and special characters are allowed for NIT questions.');
-        }
-      }
-    }
-
-    setParagraphs(updatedParagraphs);
-  };
-  const renderOptions = (question, index) => {
-    const options = addOptionE && !question.options.some(option => option.text === 'Option E')
-      ? [...question.options, { text: 'Option E', image: null }]
-      : question.options;
-    return options.map((option, optionIndex) => (
-      <div key={optionIndex} className="option-item">
-        <label>
-          <input
-            type={question.questionType === 'mcq' || question.questionType === 'assertion' || question.questionType === 'truefalse' ? 'radio' : 'checkbox'}
-            name={`answer-${index}`}
-            onChange={() => handleAnswerChange(index, option.text, optionIndex)}
-            checked={question.questionType === 'truefalse' ? question.answer === option.text : (question.questionType === 'msq' ? question.answer.includes(String.fromCharCode(65 + optionIndex)) : question.answer === String.fromCharCode(65 + optionIndex))}
-          />
-          {option.text}
-        </label>
-        {(question.questionType === 'mcq' || question.questionType === 'assertion' || question.questionType === 'msq') && (
-          <div
-            className={`option-box ${clickedBox === `option-${index}-${optionIndex}` ? 'clicked' : ''}`}
-            onClick={() => handleClickBox(`option-${index}-${optionIndex}`)}
-            onPaste={(e) => handleImagePaste(e, index, null, `option-${optionIndex}`)}
-            style={{ backgroundColor: clickedBox === `option-${index}-${optionIndex}` ? '#b6b6c5' : '' }}
-          >
-            {option.image ? (
-              <>
-                <img src={option.image} alt={`Option ${String.fromCharCode(65 + optionIndex)}`} style={{ maxWidth: '100%' }} />
-                <i onClick={() => handleRemoveImage(index, `option-${optionIndex}`, optionIndex)} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
-              </>
-            ) : (
-              'Paste your option image here (Ctrl+V)'
-            )}
-          </div>
-        )}
-      </div>
-    ));
-  };
-  const updateImage = (updatedItems, index, questionIndex, optionIndex, readerResult, type, isParagraph) => {
-    if (isParagraph) {
-      if (type === 'paragraph') {
-        updatedItems[index].paragraphImage = readerResult;
-      } else if (type === 'solution') {
-        updatedItems[index].questions[questionIndex].solution = readerResult;
-      } else if (type === 'paraquestion') {
-        updatedItems[index].questions[questionIndex].paraquestionImage = readerResult;
-      } else if (type === 'url') {
-        updatedItems[index].questions[questionIndex].url = readerResult;
-      } else if (typeof type === 'string' && type.startsWith('option')) {
-        const optionIdx = parseInt(type.split('-')[1], 10);
-        const existingOptionE = updatedItems[index].questions[questionIndex].paraOptions.find(option => option.text === 'Option E');
-        if (existingOptionE) {
-          existingOptionE.image = readerResult;
-        } else if (optionIdx === updatedItems[index].questions[questionIndex].paraOptions.length) {
-          updatedItems[index].questions[questionIndex].paraOptions.push({ text: 'Option E', image: readerResult });
-        } else {
-          updatedItems[index].questions[questionIndex].paraOptions[optionIdx].image = readerResult;
-        }
-      }
-    } else {
-      if (type === 'question') {
-        updatedItems[index].questionImage = readerResult;
-      } else if (type === 'solution') {
-        updatedItems[index].solutionImage = readerResult;
-      } else if (type === 'assertion') {
-        updatedItems[index].assertionImage = readerResult;
-      } else if (type === 'reason') {
-        updatedItems[index].reasonImage = readerResult;
-      } else if (typeof type === 'string' && type.startsWith('option')) {
-        const optionIdx = parseInt(type.split('-')[1], 10);
-        const existingOptionE = updatedItems[index].options.find(option => option.text === 'Option E');
-        if (existingOptionE) {
-          existingOptionE.image = readerResult;
-        } else if (optionIdx === updatedItems[index].options.length) {
-          updatedItems[index].options.push({ text: 'Option E', image: readerResult });
-        } else {
-          updatedItems[index].options[optionIdx].image = readerResult;
-        }
-      }
-    }
-    return updatedItems;
-  };
-  const renderQuestions = () => {
-    if (Questions.length > 0) {
-      const currentQuestion = Questions[0];
-      return (
-        <div key={0} className="question-item">
-          <h3>{currentQuestion.questionType.toUpperCase()} </h3>
-          {/* Question Image Section */}
-          <div className="question-image-container">
-            <h3>Paste Image for Question</h3>
+      case 'NAT':
+        return (
+          <div style={{ marginTop: 20 }}>
+            <h4>Numerical Answer:</h4>
             <div
-              className={`option-box ${clickedBox === `question-0` ? 'box' : ''}`}
-              onClick={() => handleClickBox(`question-0`)}
-              onPaste={(e) => handleImagePaste(e, 0, null, 'question')}
-              style={{ backgroundColor: clickedBox === `question-0` ? '#b6b6c5' : '' }}
+              style={{ position: 'relative' }}
+              title={!question.questionImage ? "Complete question image first" : ""}
             >
-              {currentQuestion.questionImage ? (
-                <>
-                  <img src={currentQuestion.questionImage} alt={`Question 1`} style={{ maxWidth: '100%' }} />
-                  <i onClick={() => handleRemoveImage(0, 'question')} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
-                </>
-              ) : (
-                'Paste your question image here (Ctrl+V)'
-              )}
-            </div>
-          </div>
-          {/* Assertion and Reason Images Section */}
-          {currentQuestion.questionType === 'assertion' && (
-            <div className="assertion-reason-container">
-              <h3>Paste Image for Assertion</h3>
-              <div
-                className={`option-box ${clickedBox === `assertion-0` ? 'clicked' : ''}`}
-                onClick={() => handleClickBox(`assertion-0`)}
-                onPaste={(e) => handleImagePaste(e, 0, null, 'assertion')}
-                style={{ backgroundColor: clickedBox === `assertion-0` ? '#b6b6c5' : '' }}
-              >
-                {currentQuestion.assertionImage ? (
-                  <>
-                    <img src={currentQuestion.assertionImage} alt={`Assertion 1`} style={{ maxWidth: '100%' }} />
-                    <i onClick={() => handleRemoveImage(0, 'assertion')} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
-                  </>
-                ) : (
-                  'Paste your assertion image here (Ctrl+V)'
-                )}
-              </div>
-              <h3>Paste Image for Reason</h3>
-              <div
-                className={`option-box ${clickedBox === `reason-0` ? 'clicked' : ''}`}
-                onClick={() => handleClickBox(`reason-0`)}
-                onPaste={(e) => handleImagePaste(e, 0, null, 'reason')}
-                style={{ backgroundColor: clickedBox === `reason-0` ? '#b6b6c5' : '' }}
-              >
-                {currentQuestion.reasonImage ? (
-                  <>
-                    <img src={currentQuestion.reasonImage} alt={`Reason 1`} style={{ maxWidth: '100%' }} />
-                    <i onClick={() => handleRemoveImage(0, 'reason')} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
-                  </>
-                ) : (
-                  'Paste your reason image here (Ctrl+V)'
-                )}
-              </div>
-            </div>
-          )}
-          {/* Options Section */}
-          {currentQuestion.questionType !== 'nit' && currentQuestion.questionType !== 'assertion' && (
-            renderOptions(currentQuestion, 0)
-          )}
-          {currentQuestion.questionType === 'assertion' && (
-            renderOptions(currentQuestion, 0)
-          )}
-          {/* NIT Answer Box */}
-          {currentQuestion.questionType === 'nit' && (
-            <div className="nit-answer-container">
-              <label>Answer:</label>
               <input
-                style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }}
-                className='input-field'
                 type="text"
-                value={currentQuestion.answer}
-                placeholder='Enter Answer here'
-                onChange={(e) => handleNITAnswerChange(0, e.target.value)}
-                pattern="[0-9]*"
+                value={question.answer}
+                onChange={(e) => onChange({
+                  ...question,
+                  answer: e.target.value.replace(/[a-z A-z]/g, '')
+                })}
+                style={{
+                  ...numericInputStyle,
+                  border: `2px solid ${question.questionImage ? "#ced4da" : "#ff4444"}`,
+                  backgroundColor: question.questionImage ? "#fff" : "#ffeaea",
+                  pointerEvents: question.questionImage ? 'auto' : 'none'
+                }}
+                placeholder="Enter numerical value"
               />
-              <div><b>Entered Answer</b>: {currentQuestion.answer}</div>
-            </div>
-          )}
-          {/* Solution Image Section */}
-          {includeSolution && (
-            <div className="solution-image-container">
-              <h3>Paste Image for Solution</h3>
-              <div
-                className={`option-box ${clickedBox === `solution-0` ? 'clicked' : ''}`}
-                onClick={() => handleClickBox(`solution-0`)}
-                onPaste={(e) => handleImagePaste(e, 0, null, 'solution')}
-                style={{ backgroundColor: clickedBox === `solution-0` ? '#b6b6c5' : '' }}
-              >
-                {currentQuestion.solutionImage ? (
-                  <>
-                    <img src={currentQuestion.solutionImage} alt={`Solution 1`} style={{ maxWidth: '100%' }} />
-                    <i onClick={() => handleRemoveImage(0, 'solution')} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
-                  </>
-                ) : (
-                  'Paste your solution image here (Ctrl+V)'
-                )}
-              </div>
-            </div>
-          )}
-          <label>URL:</label>
-          <input
-            className='url'
-            type="text"
-            value={currentQuestion.url}
-            onChange={(e) => handleUrlChange(0, e.target.value)}
-            placeholder="Enter URL here"
-          />
-          {/* Selected Answer Box */}
-          <div className="selected-answer-container">
-            {currentQuestion.questionType !== 'nit' && <label>Selected Answer:</label>}
-            {currentQuestion.questionType === 'mcq' && (
-              <input style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }} type="text" className='selectedAnswerInput' value={currentQuestion.answer} readOnly />
-            )}
-            {currentQuestion.questionType === 'msq' && (
-              <input style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }} type="text" className='selectedAnswerInput' value={currentQuestion.answer.split(',').join(', ')} readOnly />
-            )}
-            {currentQuestion.questionType === 'truefalse' && (
-              <input style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }} type="text" className='selectedAnswerInput' value={currentQuestion.answer} readOnly />
-            )}
-            {currentQuestion.questionType === 'assertion' && (
-              <input style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }} type="text" className='selectedAnswerInput' value={currentQuestion.answer} readOnly />
-            )}
-          </div>
-          <button className="save-button mcq-container" onClick={() => handleSaveQuestion(0)}>Save Question</button>
-        </div>
-      );
-    } else {
-      return null;
-    }
-  };
-  const renderParagraphs = () => {
-    if (Paragraphs.length > 0) {
-      const currentParagraph = Paragraphs[0];
-      return (
-        <div key={0} className="question-item">
-          <h3>Paragraph</h3>
-          <input
-            style={{ padding: "12px", border: "2px solid black ", borderRadius: "21px", width: "98%" }}
-            className="input-field"
-            type="number"
-            onChange={(e) => handleNumQuestionsChange(0, e.target.value)}
-            placeholder="Number of Questions for paragraph"
-          />
-
-          <div className="paragraph-image-container">
-            <h3>Paste Image for Paragraph</h3>
-            <div
-              className={`option-box ${clickedBox === `paragraph-image-0` ? 'clicked' : ''}`}
-              onClick={() => setClickedBox(`paragraph-image-0`)}
-              onPaste={(e) => handleImagePaste(e, 0, null, 'paragraph', true)}
-              style={{ backgroundColor: clickedBox === `paragraph-image-0` ? '#b6b6c5' : '' }}
-            >
-              {currentParagraph.paragraphImage ? (
-                <>
-                  <img src={currentParagraph.paragraphImage} alt="Paragraph" style={{ maxWidth: '100%' }} />
-                  <i onClick={() => handleRemoveImage(0, 'paragraph', null, true)} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
-                </>
-              ) : (
-                'Paste your paragraph image here (Ctrl+V)'
+              {!question.questionImage && (
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  cursor: 'not-allowed'
+                }} />
               )}
             </div>
           </div>
-          {currentParagraph.questions.map((question, questionIndex) => (
-            <div key={questionIndex} className="question-section">
-              <h4>Question {questionIndex + 1}</h4>
-              <div className="question-image-container">
-                <h3>Paste Image for Question</h3>
-                <div
-                  className={`option-box ${clickedBox === `question-0-${questionIndex}` ? 'clicked' : ''}`}
-                  onClick={() => setClickedBox(`question-0-${questionIndex}`)}
-                  onPaste={(e) => handleImagePaste(e, 0, questionIndex, 'paraquestion', true)}
-                  style={{ backgroundColor: clickedBox === `question-0-${questionIndex}` ? '#b6b6c5' : '' }}
-                >
-                  {question.paraquestionImage ? (
-                    <>
-                      <img src={question.paraquestionImage} alt={`Question ${questionIndex + 1}`} style={{ maxWidth: '100%' }} />
-                      <i onClick={() => handleRemoveImage(0, 'paraquestion', questionIndex, true)} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
-                    </>
-                  ) : (
-                    'Paste your question image here (Ctrl+V)'
-                  )}
+        );
 
-                </div>
-              </div>
-             
-              
-              <label>Select Question Type:</label>
-              <select
-                style={{ padding: "10px", margin: "10px", width: "16%", borderRadius: "12px" }}
-                value={question.questionType}
-                onChange={(e) => handleParagraphQuestionTypeChange(0, questionIndex, e.target.value)}
-              >
-                <option value="mcq">MCQ</option>
-                <option value="msq">MSQ</option>
-                <option value="nit">NIT</option>
-                <option value="truefalse">True/False</option>
-              </select>
-              {question.questionType === 'truefalse' ? (
-                <div className="truefalse-options">
-                  <label>
+      case 'TF':
+        return (
+          <>
+            <h4>True/False:</h4>
+            <div style={optionsGridStyle}>
+              {question.options.map((option, i) => {
+                const isActive = i === 0 ?
+                  !!question.questionImage :
+                  !!question.options[i - 1].image;
+
+                return (
+                  <OptionWrapper key={i}>
                     <input
                       type="radio"
-                      name={`option-0-${questionIndex}`}
-                      value="True"
-                      onChange={() => handleParagraphAnswerChange(0, questionIndex, 'True')}
+                      name={`${question.type}-${question.index}`}
+                      value={option.label}
+                      onChange={(e) => onChange({ ...question, answer: e.target.value })}
+                      checked={question.answer === option.label}
+                      style={inputStyle}
+                      disabled={!option.image}
                     />
-                    True
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name={`option-0-${questionIndex}`}
-                      value="False"
-                      onChange={() => handleParagraphAnswerChange(0, questionIndex, 'False')}
+                    <span>{labelTypes[labelTypes].getLabel(i)}.</span>
+                    <ImageBox
+                      image={option.image}
+                      onPaste={(e) => handleImage(e, (image) => {
+                        const newOptions = [...question.options];
+                        newOptions[i].image = image;
+                        onChange({ ...question, options: newOptions });
+                      })}
+                      onRemove={() => {
+                        const newOptions = [...question.options];
+                        newOptions[i].image = null;
+                        onChange({ ...question, options: newOptions });
+                      }}
+                      label={`option ${option.label}`}
+                      isActive={isActive}
+                      disabledMessage={i === 0
+                        ? "Complete question image first"
+                        : `Complete ${question.options[i - 1].label} first`
+                      }
                     />
-                    False
-                  </label>
-                </div>
-              ) : question.questionType === 'nit' ? (
-                <div className="nit-answer-container">
-                  <label>Answer:</label>
-                  <input
-                    style={{ margin: "12px", borderRadius: "5px", textAlign: "center", padding: "10px" }}
-                    className='input-field'
-                    type="text"
-                    value={question.paraanswers}
-                    placeholder='Enter Answer here'
-                    onChange={(e) => handleParagraphAnswerChange(0, questionIndex, e.target.value)}
-                    pattern="[0-9]*"
-                  />
-                  <div><b>Entered Answer</b>: {question.paraanswers}</div>
-                </div>
-              ) : (
-                question.paraOptions.map((option, optionIndex) => (
-                  <div key={optionIndex} className="option-item">
-                    <label>
-                      <input
-                        name={`option-0-${questionIndex}`}
-                        type={question.questionType === 'msq' ? 'checkbox' : 'radio'}
-                        onChange={() => handleParagraphAnswerChange(0, questionIndex, String.fromCharCode(65 + optionIndex), optionIndex)}
-                      />
-                      <b> Option {String.fromCharCode(65 + optionIndex)}</b>
-                    </label>
-                    <div
-                      className={`option-box ${clickedBox === `option-0-${questionIndex}-${optionIndex}` ? 'clicked' : ''}`}
-                      onClick={() => setClickedBox(`option-0-${questionIndex}-${optionIndex}`)}
-                      onPaste={(e) => handleImagePaste(e, 0, questionIndex, `option-${optionIndex}`, true)}
-                      style={{ backgroundColor: clickedBox === `option-0-${questionIndex}-${optionIndex}` ? '#b6b6c5' : '' }}
-                    >
-                      {option.image ? (
-                        <>
-                          <img src={option.image} alt={`Option ${String.fromCharCode(65 + optionIndex)}`} style={{ maxWidth: '100%' }} />
-                          <i onClick={() => handleRemoveImage(0, `option-${optionIndex}`, questionIndex, true)} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
-                        </>
-                      ) : (
-                        'Paste your option image here (Ctrl+V)'
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-               <label>URL:</label>
-              <input
-                className='url'
-                type="text"
-                value={question.url}
-                onChange={(e) => handleParagraphUrlChange(0, questionIndex, e.target.value)}
-                placeholder="Enter URL here"
-              /> 
-                <div className="solution-image-container">
-                <h3>Paste Image for Solution</h3>
-                <div
-
-                  className={`option-box ${clickedBox === `solution-0-${questionIndex}` ? 'clicked' : ''}`}
-                  onClick={() => setClickedBox(`solution-0-${questionIndex}`)}
-                  onPaste={(e) => handleImagePaste(e, 0, questionIndex, 'solution', true)}
-                  onChange={(e) => handleParagraphSolutionChange(0, questionIndex, e.target.value)}
-                  style={{ backgroundColor: clickedBox === `solution-0-${questionIndex}` ? '#b6b6c5' : '' }}
-                >
-                  {question.solution ? (
-                    <>
-                      <img src={question.solution} alt={`Solution ${questionIndex + 1}`} style={{ maxWidth: '100%' }} />
-                      <i onClick={() => handleRemoveImage(0, 'solution', questionIndex, null, true)} className="fa-sharp fa-solid fa-rectangle-xmark"></i>
-                    </>
-
-                  ) : (
-                    'Paste your solution image here (Ctrl+V)'
-                  )}
-                </div>
-              </div>
-
-
+                  </OptionWrapper>
+                );
+              })}
             </div>
-          ))}
-          <button className="save-button mcq-container" onClick={() => handleSaveParagraph(0)}>Save Paragraph</button>
-        </div>
-      );
-    } else {
-      return null;
+          </>
+        );
+
+      default:
+        return null;
     }
   };
+
   return (
-    <div className="container">
-
-      <div className={`sidebar ${isSidebarOpen ? 'show' : ''}`}>
-        <h3>Question Management :</h3>
-        <label>Question Type:</label>
-        <select
-          value={Questions[0]?.questionType}
-          onChange={(e) => handleSidebarQuestionTypeChange(0, e.target.value)}
+    <div style={questionContainerStyle}>
+      <h4>Question {index + 1}:</h4>
+      <ProgressBar />
+      {question.type !== 'Paragraph' && (
+        <ImageBox
+          image={question.questionImage}
+          onPaste={(e) => handleImage(e, (image) => {
+            onChange({ ...question, questionImage: image });
+          })}
+          onRemove={() => {
+            onChange({ ...question, questionImage: null });
+          }}
+          label="question"
+        />
+      )}
+      {renderOptions()}
+      {question.type !== 'Paragraph' && (
+        <ImageBox
+          image={question.solutionImage}
+          onPaste={(e) => handleImage(e, (image) => {
+            onChange({ ...question, solutionImage: image });
+          })}
+          onRemove={() => {
+            onChange({ ...question, solutionImage: null });
+          }}
+          label="solution"
+          isActive={validationState.options.every(opt => opt)}
+          disabledMessage="Complete all options first"
+        />
+      )}
+      <div style={{ marginTop: "15px" }}>
+        <label><b>Question Reference URL: </b></label>
+        <div
+          style={{ position: 'relative' }}
+          title={!isValid ? "Complete all images first" : ""}
         >
-          <option value="mcq">MCQ</option>
-          <option value="msq">MSQ</option>
-          <option value="truefalse">True/False</option>
-          <option value="nit">NIT</option>
-          <option value="assertion">Assertion</option>
-        </select>
-        <div className="marks-container">
-          <label>Marks:</label>
-          <input type="number" placeholder="+ve" onChange={(e) => setPositiveMarks(e.target.value)} />
-          <input type="number" placeholder="-ve" onChange={(e) => setNegativeMarks(e.target.value)} />
-        </div>
-        <div style={{ marginBottom: "10px" }}>
-          <div className="checkbox-group">
-            <input
-              type="checkbox"
-              checked={includeSolution}
-              onChange={() => handleIncludeSolutionChange(0)}
-            />
-            <span style={{ marginLeft: "18px", fontSize: "larger" }}>Include Solution</span>
-          </div>
-        </div>
-        <div>
-          <div className="checkbox-group">
-            <input
-              type="checkbox"
-              checked={addOptionE}
-              onChange={() => handleAddOptionEChange(0)}
-            />
-            <span style={{ marginLeft: "18px", fontSize: "larger" }}>Add Option E</span>
-          </div>
-        </div>
-        <div>
-          <div className="checkbox-group">
-            <input
-              type="checkbox"
-              checked={includeParagraph}
-              onClick={handleToggleIncludeParagraph}
-            />
-            <span style={{ marginLeft: "18px", fontSize: "larger" }}>Include Paragraph</span>
-          </div>
+          <input
+            type="url"
+            value={question.url || ""}
+            onChange={(e) => onChange({ ...question, url: e.target.value })}
+            placeholder="Enter url"
+            style={{
+              width: "100%",
+              padding: "8px",
+              borderRadius: "4px",
+              border: `2px solid ${isValid ? '#ced4da' : '#ff4444'}`,
+              backgroundColor: isValid ? '#fff' : '#ffeaea',
+              pointerEvents: isValid ? 'auto' : 'none'
+            }}
+          />
+          {!isValid && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              cursor: 'not-allowed'
+            }} />
+          )}
         </div>
       </div>
-      <div className="main-content">
-        {includeParagraph == false && renderQuestions()}
-        {includeParagraph && renderParagraphs()}
-        {Questions.length > 0 && (
-          <div style={{ display: "flex", justifyContent: "center" }}>
-
-            <button
-              style={{ display: "block" }}
-              className="save-button mcq-container"
-              onClick={handleSaveCombinedItems}
-            >
-              Save Docx
-            </button>
-
-
-
-            <PreviewModal
-              show={showModal}
-              handleClose={() => setShowModal(false)}
-              documentContent={documentContent}
-              handleEdit={handleEdit}
-              handleDownload={handleDownload}
-            />
-
-          </div>
-        )}
-      </div>
+      {['MCQ', 'MSQ', 'TF'].includes(question.type) && (
+        <div style={answerDisplayStyle}>
+          {question.type === 'TF' ? (
+            <span>Selected Answer: {question.answer || "None"}</span>
+          ) : (
+            <span>
+              Selected Answer: {Array.isArray(question.answer)
+                ? question.answer.join(", ")
+                : question.answer}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 };
+const QuestionTypeSelector = ({ value, onChange }) => (
+  <select
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    style={{
+      padding: "8px",
+      borderRadius: "4px",
+      border: "1px solid #ced4da",
+      marginBottom: "10px"
+    }}
+  >
+    <option value="MCQ">Multiple Choice (MCQ)</option>
+    <option value="MSQ">Multiple Select (MSQ)</option>
+    <option value="NAT">Numerical Answer (NAT)</option>
+    <option value="TF">True/False</option>
+  </select>
+);
+const QuestionUploadForm = () => {
 
-export default Management;
+  const [labelType, setLabelType] = useState('letters'); // Ensure this line is present
+  const [editingIndex, setEditingIndex] = useState(null);
+  const questionRefs = useRef([]);
+  const containerRef = useRef(null);
+  const [examType, setExamType] = useState("");
+  const [sectionOrSubject, setSectionOrSubject] = useState("");
+  const [questions, setQuestions] = useState([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState(null);
+  const handleExamTypeChange = (e) => {
+    const newExamType = e.target.value;
+    setExamType(newExamType);
+    setSectionOrSubject("");
+    setQuestions([]);
+  };
+  const handleSectionOrSubjectChange = (e) => {
+    const newSectionOrSubject = e.target.value;
+    setSectionOrSubject(newSectionOrSubject);
+    setQuestions([]);
+    setTimeout(() => {
+      setQuestions(generateFormFields(examType, newSectionOrSubject));
+    }, 0);
+  };
+
+  const handleQuestionChange = (index, updatedQuestion) => {
+    const newQuestions = [...questions];
+    newQuestions[index] = updatedQuestion;
+    setQuestions(newQuestions);
+  };
+  useLayoutEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+  }, [sectionOrSubject]);
+  const handlePreview = async () => {
+    const getMarks = () => {
+      switch (examType) {
+        case "BITSAT": return { positive: "3", negative: "1" };
+        default: return { positive: "4", negative: "1" };
+      }
+    };
+
+    // Add label type handling
+    const getOptionLabel = (index) => {
+      switch (labelType) {
+        case 'roman':
+          return ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][index] || (index + 1).toString();
+        case 'numbers':
+          return (index + 1).toString();
+        case 'uppercase':
+          return String.fromCharCode(65 + index);
+        default: // letters
+          return String.fromCharCode(97 + index);
+      }
+    };
+
+    const processImage = async (imageData, maxWidth, maxHeight) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.src = imageData;
+        img.onload = () => {
+          const ratio = Math.min(
+            maxWidth / img.naturalWidth,
+            maxHeight / img.naturalHeight
+          );
+          resolve({
+            width: img.naturalWidth * ratio,
+            height: img.naturalHeight * ratio
+          });
+        };
+      });
+    };
+
+    try {
+      const { positive, negative } = getMarks();
+      const docSections = [{
+        properties: {
+          page: {
+            margin: { top: 100, right: 100, bottom: 100, left: 100 }
+          }
+        },
+        children: []
+      }];
+
+      for (const [index, question] of questions.entries()) {
+        const questionContent = [];
+
+        if (question.type === 'Paragraph') {
+          questionContent.push(
+            new Paragraph({
+              children: [new TextRun({ text: `[PRG] Paragraph ${index + 1}`, bold: true })]
+            }),
+            new Paragraph(`[sortid]: ${index + 1}`),
+            new Paragraph(`[qType]: CTQ`),
+            new Paragraph(`[Marks]: [+${positive}, -${negative}]`)
+          );
+
+          if (question.paragraphImage) {
+            const transform = await processImage(question.paragraphImage, 600, 900);
+            questionContent.push(
+              new Paragraph({
+                children: [
+                  new ImageRun({
+                    data: question.paragraphImage.split(",")[1],
+                    transformation: transform
+                  })
+                ]
+              })
+            );
+          }
+
+          if (question.questions) {
+            for (const [subIndex, subQuestion] of question.questions.entries()) {
+              questionContent.push(
+                new Paragraph({
+                  children: [new TextRun({ text: `[PQ] Sub-Question ${subIndex + 1}`, bold: true })]
+                }),
+                new Paragraph(`[sortid]: ${index + 1}.${subIndex + 1}`),
+                new Paragraph(`[qType]: ${subQuestion.type}`),
+                new Paragraph(`[Marks]: [+${positive}, -${negative}]`)
+              );
+
+              if (subQuestion.questionImage) {
+                const transform = await processImage(subQuestion.questionImage, 600, 900);
+                questionContent.push(
+                  new Paragraph({
+                    children: [
+                      new ImageRun({
+                        data: subQuestion.questionImage.split(",")[1],
+                        transformation: transform
+                      })
+                    ]
+                  })
+                );
+              }
+
+              if (subQuestion.options) {
+                questionContent.push(new Paragraph("Options:"));
+                await Promise.all(subQuestion.options.map(async (option, optIndex) => {
+                  const label = getOptionLabel(optIndex);
+                  const optionElements = [
+                    new TextRun({
+                      text: `(${label}) `, // Changed here
+                      bold: true
+                    })
+                  ];
+
+                  if (option.text) {
+                    optionElements.push(new TextRun(option.text + " "));
+                  }
+
+                  if (option.image) {
+                    const transform = await processImage(option.image, 200, 150);
+                    optionElements.push(
+                      new ImageRun({
+                        data: option.image.split(",")[1],
+                        transformation: transform
+                      })
+                    );
+                  }
+
+                  questionContent.push(
+                    new Paragraph({
+                      children: optionElements,
+                      spacing: { after: 200 }
+                    })
+                  );
+                }));
+              }
+
+              questionContent.push(
+                new Paragraph(`[ans]: ${subQuestion.answer}`),
+                new Paragraph(`[vsoln]: ${subQuestion.url}`),
+                new Paragraph("")
+              );
+            }
+          }
+        } else {
+          questionContent.push(
+            new Paragraph({
+              children: [new TextRun({ text: `[Q] Question ${index + 1}`, bold: true })]
+            }),
+            new Paragraph(`[sortid]: ${index + 1}`),
+            new Paragraph(`[qType]: ${question.type}`),
+            new Paragraph(`[Marks]: [+${positive}, -${negative}]`)
+          );
+
+          if (question.questionImage) {
+            const transform = await processImage(question.questionImage, 600, 900);
+            questionContent.push(
+              new Paragraph({
+                children: [
+                  new ImageRun({
+                    data: question.questionImage.split(",")[1],
+                    transformation: transform
+                  })
+                ]
+              })
+            );
+          }
+
+          if (question.options) {
+            questionContent.push(new Paragraph("Options:"));
+            await Promise.all(question.options.map(async (option, optIndex) => {
+              const label = getOptionLabel(optIndex); // Changed here
+              const optionElements = [
+                new TextRun({
+                  text: `(${label}) `, // Changed here
+                  bold: true
+                })
+              ];
+
+              if (option.text) {
+                optionElements.push(new TextRun(option.text + " "));
+              }
+
+              if (option.image) {
+                const transform = await processImage(option.image, 200, 150);
+                optionElements.push(
+                  new ImageRun({
+                    data: option.image.split(",")[1],
+                    transformation: transform
+                  })
+                );
+              }
+
+              questionContent.push(
+                new Paragraph({
+                  children: optionElements,
+                  spacing: { after: 200 }
+                })
+              );
+            }));
+          }
+
+          questionContent.push(
+            new Paragraph(`[ans]: ${question.answer}`),
+            new Paragraph(`[vsoln]: ${question.url}`),
+            new Paragraph("")
+          );
+        }
+
+        docSections[0].children.push(...questionContent);
+      }
+
+      docSections[0].children.push(
+        new Paragraph({
+          text: "[END OF DOCUMENT]",
+          bold: true,
+          pageBreakBefore: true
+        })
+      );
+
+      const doc = new Document({ sections: docSections });
+      setPreviewDocument(doc);
+      setIsPreviewOpen(true);
+    } catch (error) {
+      console.error("Error generating preview:", error);
+      alert("Error generating preview. Check console for details.");
+    }
+  };
+  return (
+
+    <div style={{
+
+      maxWidth: "1200px",
+
+      margin: "40px auto",
+
+      padding: "30px",
+
+      backgroundColor: "white",
+
+      borderRadius: "12px",
+
+      boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+
+    }}>
+
+      <h1 style={{
+
+        textAlign: "center",
+
+        color: "#2c3e50",
+
+        marginBottom: "30px",
+
+        fontSize: "2.2rem"
+
+      }}>
+
+        Exam Question Generator
+
+      </h1>
+
+
+
+      <div style={{
+
+        display: "grid",
+
+        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+
+        gap: "20px",
+
+        marginBottom: "30px"
+
+      }}>
+
+        <div>
+
+          <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
+
+            Exam Type:
+
+          </label>
+
+          <select
+
+            value={examType}
+
+            onChange={handleExamTypeChange}
+
+            style={{
+
+              width: "100%",
+
+              padding: "12px",
+
+              borderRadius: "8px",
+
+              border: "2px solid #ced4da",
+
+              fontSize: "16px"
+
+            }}
+
+          >
+            <option value="">Select Exam Type</option>
+
+            {Object.keys(examConfig).map((type) => (
+
+              <option key={type} value={type}>{type}</option>
+
+            ))}
+
+          </select>
+
+        </div>
+
+
+
+        {examType && (
+
+          <div>
+
+            <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
+
+              {examType === "JEE Mains" ? "Section" : "Subject"}:
+
+            </label>
+
+            <select
+
+              value={sectionOrSubject}
+
+              onChange={handleSectionOrSubjectChange}
+
+              style={{
+
+                width: "100%",
+
+                padding: "12px",
+
+                borderRadius: "8px",
+
+                border: "2px solid #ced4da",
+
+                fontSize: "16px"
+
+              }}
+
+            >
+
+              <option value="">Select {examType === "JEE Mains" ? "Section" : "Subject"}</option>
+
+              {examType === "JEE Mains"
+
+                ? examConfig[examType].sections.map((section) => (
+
+                  <option key={section.name} value={section.name}> {section.name} </option>
+
+                ))
+
+                : examConfig[examType].subjects.map((subject) => (
+
+                  <option key={subject} value={subject}>{subject}</option>
+
+                ))}
+
+            </select>
+
+          </div>
+
+        )}
+
+      </div>
+
+      {sectionOrSubject && (
+
+        <div
+          key={sectionOrSubject}
+          ref={containerRef}
+          style={{
+            maxHeight: "70vh",
+            overflowY: "auto",
+            paddingRight: "15px",
+            marginBottom: "30px",
+            scrollBehavior: "smooth"
+          }}
+        >
+          <div style={{
+            marginBottom: "20px",
+            display: "flex",
+            gap: "20px",
+            alignItems: "center"
+          }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
+                Option Label Type:
+              </label>
+              <select
+                value={labelType}
+                onChange={(e) => setLabelType(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "2px solid #ced4da",
+                  fontSize: "16px"
+                }}
+              >
+                <option value="letters">Letters (a, b, c)</option>
+                <option value="numbers">Numbers (1, 2, 3)</option>
+                <option value="roman">Roman Numerals (I, II, III)</option>
+                <option value="uppercase">Uppercase (A, B, C)</option>
+              </select>
+            </div>
+          </div>
+          {questions.reduce((acc, question, index) => {
+            // Section header logic
+            if (index === 0 || question.section !== questions[index - 1].section) {
+              acc.push(
+                <div key={`header-${question.section}`} style={{
+                  padding: "15px",
+                  backgroundColor: question.section.startsWith("Extra Question") ? "#ffe6e6" : "#e6f3ff",
+                  borderLeft: `4px solid ${question.section.startsWith("Extra Question") ? "#ff4444" : "#3498db"}`,
+                  margin: "20px 0",
+                  borderRadius: "4px"
+                }}>
+                  <h3 style={{
+                    margin: 0,
+                    color: question.section.startsWith("Extra Question") ? "#ff4444" : "#2c3e50"
+                  }}>
+                    {question.section}
+                    {examType === "JEE Mains" && (
+                      <span style={{
+                        fontSize: "0.9em",
+                        color: "#666",
+                        marginLeft: "10px"
+                      }}>
+                        ({question.type} Questions)
+                      </span>
+                    )}
+                  </h3>
+                </div>
+              );
+            }
+
+            // Add the question with blur and overlay
+            acc.push(
+              <div
+                key={index}
+                ref={el => (questionRefs.current[index] = el)}
+                style={{
+                  filter: editingIndex !== null && editingIndex !== index ? 'blur(3px)' : 'none',
+                  pointerEvents: editingIndex !== null && editingIndex !== index ? 'none' : 'all',
+                  transition: 'filter 0.3s ease',
+                  position: 'relative'
+                }}
+              >
+                {/* Question component */}
+                {question.type === 'Paragraph' ? (
+                  <ParagraphQuestion
+                    question={question}
+                    onChange={(updatedQuestion) => handleQuestionChange(index, updatedQuestion)}
+                    index={index}
+                    containerRef={containerRef}
+                    labelType={labelType}
+                  />
+                ) : (
+                  <QuestionRenderer
+                    question={question}
+                    onChange={(updatedQuestion) => handleQuestionChange(index, updatedQuestion)}
+                    index={index}
+                    containerRef={containerRef}
+                    labelType={labelType}
+                  />
+                )}
+
+                {/* Edit overlay */}
+                {editingIndex === index && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '10px', // Position the button at the top
+                    right: '10px',
+                    zIndex: 1000,
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)', // Optional: add a background to the button
+                    padding: '10px',
+                    borderRadius: '4px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                  }}>
+                    <button
+                      onClick={() => {
+                        setEditingIndex(null); // Exit edit mode
+                        handlePreview(); // Regenerate document with changes
+                      }}
+                      style={{
+                        padding: "10px 20px",
+                        backgroundColor: "#4CAF50",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "16px"
+                      }}
+                    >
+                      Update Question
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+            return acc;
+          }, [])}
+        </div>
+      )}
+
+
+      {questions.length > 0 && (
+
+        <div style={{ textAlign: "center" }}>
+
+          <button
+
+            onClick={handlePreview}
+
+            style={{
+
+              padding: "14px 28px",
+
+              fontSize: "16px",
+
+              backgroundColor: "#4CAF50",
+
+              color: "white",
+
+              border: "none",
+
+              borderRadius: "6px",
+
+              cursor: "pointer",
+
+              transition: "background-color 0.3s",
+
+              fontWeight: "500"
+
+            }}
+
+          >
+
+            Preview Exam Document
+
+          </button>
+
+        </div>
+
+      )}
+      <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)}>
+        <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
+          <h2 style={{ textAlign: "center", marginBottom: "30px", color: "#2c3e50" }}>Exam Preview</h2>
+          <div style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: "15px" }}>
+            {questions.map((question, index) => (
+              <div key={index} style={{
+                marginBottom: "30px",
+                padding: "20px",
+                border: "1px solid #eee",
+                borderRadius: "8px",
+                backgroundColor: "#f9f9f9",
+                position: 'relative' // Added for positioning the button
+              }}>
+                {/* Add Edit Button Here */}
+                <button
+                  onClick={() => {
+                    setIsPreviewOpen(false);
+                    setEditingIndex(index);
+                    setTimeout(() => {
+                      questionRefs.current[index]?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                      });
+                    }, 100);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '10px',
+                    padding: '5px 10px',
+                    backgroundColor: '#3498db',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Edit
+                </button>
+
+                {/* Existing question content */}
+                {question.type === 'Paragraph' && (
+                  <div style={{ marginBottom: "20px" }}>
+                    <h4 style={{ color: "#3498db" }}>
+                      [PRG] Paragraph {index + 1}
+                    </h4>
+                    {question.paragraphImage && (
+                      <div style={{ marginTop: "15px" }}>
+                        <h5>Paragraph Image:</h5>
+                        <img
+                          src={question.paragraphImage}
+                          alt="Paragraph"
+                          style={{ maxWidth: "100%", maxHeight: "300px", border: "1px solid #ddd" }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sub-questions for Paragraph */}
+                {question.type === 'Paragraph' && question.questions?.map((subQuestion, subIndex) => (
+                  <div key={subIndex} style={{
+                    marginTop: "20px",
+                    padding: "15px",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px"
+                  }}>
+                    <h5>Sub-question {subIndex + 1}</h5>
+                    {subQuestion.questionImage && (
+                      <div style={{ margin: "15px 0" }}>
+                        <h6>Question Image:</h6>
+                        <img
+                          src={subQuestion.questionImage}
+                          alt="Sub-question"
+                          style={{ maxWidth: "100%", maxHeight: "250px", border: "1px solid #ddd" }}
+                        />
+                      </div>
+                    )}
+                    {subQuestion.options && (
+                      <div style={{ margin: "15px 0" }}>
+                        <h6>Options:</h6>
+                        <div style={{ display: "grid", gap: "10px" }}>
+                          {subQuestion.options.map((option, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span>({labelTypes[labelType].getLabel(i)})</span>
+                              {option.image && (
+                                <img
+                                  src={option.image}
+                                  alt={`Option ${labelTypes[labelType].getLabel(i)}`}
+                                  style={{ maxWidth: "150px", maxHeight: "100px", border: "1px solid #ddd" }}
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ marginTop: "15px", color: "#2e7d32" }}>
+                      <strong>Answer:</strong> {subQuestion.answer}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Regular Question Display */}
+                {question.type !== 'Paragraph' && (
+                  <>
+                    <h4 style={{ color: "#3498db", marginBottom: "15px" }}>
+                      [Q] Question {index + 1} ({question.type})
+                    </h4>
+                    {question.questionImage && (
+                      <div style={{ marginBottom: "20px" }}>
+                        <h5>Question Image:</h5>
+                        <img
+                          src={question.questionImage}
+                          alt="Question"
+                          style={{ maxWidth: "100%", maxHeight: "300px", border: "1px solid #ddd" }}
+                        />
+                      </div>
+                    )}
+                    {question.options && (
+                      <div style={{ marginBottom: "20px" }}>
+                        <h5>Options:</h5>
+                        <div style={{ display: "grid", gap: "15px" }}>
+                          {question.options.map((option, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <span style={{ fontWeight: "bold", minWidth: "30px" }}>
+                                ({String.fromCharCode(97 + i)})
+                              </span>
+                              {option.image && (
+                                <img
+                                  src={option.image}
+                                  alt={`Option ${String.fromCharCode(97 + i)}`}
+                                  style={{ maxWidth: "200px", maxHeight: "150px", border: "1px solid #ddd" }}
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div style={{
+                      backgroundColor: "#e8f5e9",
+                      padding: "15px",
+                      borderRadius: "6px",
+                      marginTop: "15px"
+                    }}>
+                      <h5 style={{ marginBottom: "10px", color: "#2e7d32" }}>Correct Answer:</h5>
+                      <div style={{
+                        padding: "10px",
+                        backgroundColor: "white",
+                        borderRadius: "4px",
+                        fontWeight: "bold"
+                      }}>
+                        {Array.isArray(question.answer) ? question.answer.join(", ") : question.answer}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{
+            marginTop: "30px",
+            display: "flex",
+            justifyContent: "center",
+            gap: "20px"
+          }}>
+            <button
+              onClick={() => setIsPreviewOpen(false)}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#e74c3c",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "16px",
+                fontWeight: "500",
+                transition: "background-color 0.3s"
+              }}
+            >
+              Close Preview
+            </button>
+
+            <button
+              onClick={async () => {
+                const blob = await Packer.toBlob(previewDocument);
+                saveAs(blob, "exam_document.docx");
+                setIsPreviewOpen(false);
+                setExamType("");
+                setSectionOrSubject("");
+                setQuestions([]);
+                setEditingIndex(null);
+              }}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#2ecc71",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "16px",
+                fontWeight: "500",
+                transition: "background-color 0.3s"
+              }}
+            >
+              Confirm & Download
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+export default QuestionUploadForm;
