@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { saveAs } from "file-saver";
-import { Document, Packer, TextRun, Paragraph, ImageRun, AlignmentType } from "docx";
+import BASE_URL from "../apiConfig"
+import { Document, Packer, TextRun, Paragraph, ImageRun } from "docx";
 import Modal from './Modal';
+import axios from 'axios';
 const examConfig = {
   "JEE Mains": {
     sections: [
@@ -26,7 +28,7 @@ const examConfig = {
       "Physics": 30,
       "Chemistry": 30,
       "Mathematics": 40,
-      "English Proficiency && Logical Reasoning": 40,
+      "English Proficiency && Logical Reasoning": 30,
       "Extra Question Physics": 3,
       "Extra Question Chemistry": 3,
       "Extra Question Mathematics": 3,
@@ -152,7 +154,7 @@ const generateFormFields = (examType, sectionOrSubject) => {
         paragraphSolutionImage: null,
         url: "",
       })));
-      fields.push(...Array.from({ length: 40 }, (_, i) => ({
+      fields.push(...Array.from({ length: 30 }, (_, i) => ({
         section: "English Proficiency && Logical Reasoning",
         type: "Paragraph",
         index: i,
@@ -297,6 +299,7 @@ const generateFormFields = (examType, sectionOrSubject) => {
   }
   return fields;
 };
+
 const handleImage = (e, setImage) => {
   e.preventDefault();
   const clipboardItems = e.clipboardData.items;
@@ -326,7 +329,6 @@ const ImageBox = ({ image, onPaste, onClick, onRemove, label, style, isActive = 
         position: 'relative',
         padding: "10px",
         textAlign: "center",
-        cursor: "pointer",
         marginTop: "10px",
         minHeight: "100px",
         display: "flex",
@@ -451,6 +453,14 @@ const updateQuestionType = (question, newType) => {
   };
 
   switch (newType) {
+    case 'Paragraph':
+      return {
+        ...baseQuestion,
+        paragraphImage: null,
+        questions: [],
+        questionCount: 1,
+        isConvertedFromParagraph: undefined
+      };
     case 'MCQ':
       return { ...baseQuestion, options: Array.from({ length: 4 }, () => ({ image: null })) };
     case 'MSQ':
@@ -470,85 +480,121 @@ const updateQuestionType = (question, newType) => {
 };
 const ParagraphQuestion = ({ question, onChange, index, containerRef, labelType }) => {
   const [numQuestions, setNumQuestions] = useState(question.questionCount || 0);
+  const handleMainQuestionTypeChange = (newType) => {
+    if (newType === "MCQ") {
+      onChange({
+        ...question,
+        type: "MCQ",
+        isConvertedFromParagraph: true,
+        options: Array.from({ length: 4 }, () => ({ image: null })),
+        paragraphImage: null,
+        questions: undefined,
+        questionCount: undefined,
+        answer: ""
+      });
+    }
+  };
 
   const handleQuestionCountChange = (count) => {
-    const newCount = Math.max(1, parseInt(count) || 1);
-    setNumQuestions(newCount);
-    const currentQuestions = question.questions || [];
-
-    const newQuestions = Array.from({ length: newCount }, (_, i) =>
-      i < currentQuestions.length
-        ? currentQuestions[i]
-        : {
-          type: "MCQ",
-          questionImage: null,
-          options: Array.from({ length: 4 }, () => ({ image: null })),
-          solutionImage: null,
-          answer: ""
-        }
-    );
-
-    onChange({
-      ...question,
-      questionCount: newCount,
-      questions: newQuestions
-    });
+      const newCount = Math.max(1, parseInt(count) || 0);
+      setNumQuestions(newCount);
+      const currentQuestions = question.questions || [];
+      const newQuestions = Array.from({ length: newCount }, (_, i) =>
+          i < currentQuestions.length
+              ? currentQuestions[i]
+              : {
+                    type: "MCQ", 
+                    questionImage: null,
+                    options: Array.from({ length: 4 }, () => ({ image: null })),
+                    solutionImage: null,
+                    answer: ""
+                }
+      );
+      onChange({
+          ...question,
+          questionCount: newCount,
+          questions: newQuestions
+      });
   };
 
   return (
-    <div style={questionContainerStyle}>
-      <h4>Paragraph {index + 1}</h4>
-      <div style={{ margin: "10px 0" }}>
-        <label>Number of Questions: </label>
-        <input
-          type="number"
-          value={numQuestions}
-          onChange={(e) => handleQuestionCountChange(e.target.value)}
-          min="1"
-          style={{
-            padding: "8px",
-            width: "60px",
-            marginLeft: "10px"
-          }}
-        />
+      <div style={questionContainerStyle}>
+          <h4>Question {index + 1}</h4>
+          <div style={{ margin: "10px 0" }}>
+              <label>Question Type: </label>
+              <select
+                  value={question.type}
+                  onChange={(e) => handleMainQuestionTypeChange(e.target.value)}
+                  style={{
+                      padding: "8px",
+                      width: "120px",
+                      marginLeft: "10px"
+                  }}
+              >
+                  <option value="Paragraph">Paragraph</option>
+                  <option value="MCQ">MCQ</option>
+              </select>
+          </div>
+          {question.type === "Paragraph" ? (
+              <>
+                  <div style={{ margin: "10px 0" }}>
+                      <label>Number of Sub-Questions: </label>
+                      <input
+                          type="number"
+                          value={numQuestions}
+                          onChange={(e) => handleQuestionCountChange(e.target.value)}
+                          disabled={question.preventAdd}
+                          style={{
+                              padding: "8px",
+                              width: "60px",
+                              marginLeft: "10px"
+                          }}
+                      />
+                  </div>
+                  <ImageBox
+                      image={question.paragraphImage}
+                      onPaste={(e) => handleImage(e, (img) => onChange({ ...question, paragraphImage: img }))}
+                      onRemove={() => onChange({ ...question, paragraphImage: null })}
+                      label="paragraph"
+                  />
+                  <h4 style={{ marginTop: 20 }}>Sub-Questions:</h4>
+                  {(question.questions || []).map((subQuestion, subIndex) => (
+                      <div key={subIndex} style={{ marginTop: 15, padding: 15, border: "1px solid #ddd", borderRadius: 8 }}>
+                          <QuestionRenderer
+                              question={subQuestion}
+                              onChange={(updatedSub) => {
+                                  const newQuestions = [...question.questions];
+                                  newQuestions[subIndex] = updatedSub;
+                                  onChange({ ...question, questions: newQuestions });
+                              }}
+                              index={subIndex}
+                              containerRef={containerRef}
+                              labelType={labelType}
+                              isSubQuestion
+                          />
+                      </div>
+                  ))}
+              </>
+          ) : (
+              <QuestionRenderer
+                  question={question}
+                  onChange={onChange}
+                  index={index}
+                  containerRef={containerRef}
+                  labelType={labelType}
+              />
+          )}
       </div>
-      <ImageBox
-        image={question.paragraphImage}
-        onPaste={(e) => handleImage(e, (img) => onChange({ ...question, paragraphImage: img }))}
-        onRemove={() => onChange({ ...question, paragraphImage: null })}
-        label="paragraph"
-      />
-      <h4 style={{ marginTop: 20 }}>Related Questions:</h4>
-      {(question.questions || []).map((subQuestion, subIndex) => (
-        <div key={subIndex} style={{ marginTop: 15, padding: 15, border: "1px solid #ddd", borderRadius: 8 }}>
-          <QuestionTypeSelector
-            value={subQuestion.type}
-            onChange={(newType) => {
-              const updatedSub = updateQuestionType(subQuestion, newType);
-              const newQuestions = [...question.questions];
-              newQuestions[subIndex] = updatedSub;
-              onChange({ ...question, questions: newQuestions });
-            }}
-          />
-          <QuestionRenderer
-            question={subQuestion}
-            onChange={(updatedSub) => {
-              const newQuestions = [...question.questions];
-              newQuestions[subIndex] = updatedSub;
-              onChange({ ...question, questions: newQuestions });
-            }}
-            index={subIndex}
-            containerRef={containerRef}
-            labelType={labelType}
-          />
-
-        </div>
-      ))}
-    </div>
   );
 };
-const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }) => {
-
+const QuestionRenderer = ({ 
+  question, 
+  onChange, 
+  index, 
+  containerRef, 
+  labelType, 
+  isSubQuestion = false 
+}) => {
   const getOptionLabel = (index) => {
     switch (labelType) {
       case 'roman':
@@ -557,11 +603,11 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
         return (index + 1).toString();
       case 'uppercase':
         return String.fromCharCode(65 + index);
-      default: // letters
+      default: 
         return String.fromCharCode(97 + index);
     }
   };
-  // Use this label in both UI and document generation
+
   const [validationState, setValidationState] = useState({
     questionImage: !!question.questionImage,
     options: question.options?.map(opt => !!opt.image) || [],
@@ -569,7 +615,6 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
     url: !!question.url
   });
 
-  // In QuestionRenderer component
   useEffect(() => {
     const answerValid = question.type === 'MSQ'
       ? question.answer.length > 0
@@ -586,11 +631,11 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
     });
   }, [question]);
 
-  // Updated isValid calculation
   const isValid = validationState.questionImage &&
     validationState.solutionImage &&
     validationState.answer &&
     (question.type === 'NAT' || validationState.options.every(opt => opt));
+
   const ProgressBar = () => {
     const isNAT = question.type === 'NAT';
     const steps = [
@@ -616,23 +661,32 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
 
   const handleImage = (e, setImage) => {
     e.preventDefault();
-    const container = containerRef.current;
-    const scrollPosition = container?.scrollTop || 0;
     const clipboardItems = e.clipboardData.items;
     for (let i = 0; i < clipboardItems.length; i++) {
       if (clipboardItems[i].type.startsWith("image/")) {
         const file = clipboardItems[i].getAsFile();
         const reader = new FileReader();
         reader.onload = () => {
-          setImage(reader.result);
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const pngDataUrl = canvas.toDataURL('image/png');
+            setImage(pngDataUrl);
+          };
+          img.src = reader.result;
         };
         reader.readAsDataURL(file);
         break;
       }
     }
-    setTimeout(() => {
-      if (container) container.scrollTop = scrollPosition;
-    }, 0);
+  };
+
+  const handleTypeChange = (newType) => {
+    onChange(updateQuestionType(question, newType));
   };
 
   const renderOptions = () => {
@@ -682,7 +736,7 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
                         onChange({ ...question, answer: newAnswers });
                       }}
                       value={getOptionLabel(i).toUpperCase()}
-                      checked={question.answer === getOptionLabel(i).toUpperCase()}
+                      checked={question.answer.includes(getOptionLabel(i).toUpperCase())}
                       style={inputStyle}
                       disabled={!isActive}
                     />
@@ -699,11 +753,11 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
                         newOptions[i].image = null;
                         onChange({ ...question, options: newOptions });
                       }}
-                      label={`option ${getOptionLabel(i)}`}  // Also fix here
+                      label={`option ${getOptionLabel(i)}`}
                       isActive={isActive}
                       disabledMessage={i === 0
                         ? "Complete question image first"
-                        : `Complete option ${getOptionLabel(i - 1)} first`}  // And here
+                        : `Complete option ${getOptionLabel(i - 1)} first`}
                       style={{
                         flex: 1,
                         marginTop: 0,
@@ -711,7 +765,6 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
                       }}
                     />
                   </OptionWrapper>
-
                 );
               })}
             </div>
@@ -731,7 +784,7 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
                 value={question.answer}
                 onChange={(e) => onChange({
                   ...question,
-                  answer: e.target.value.replace(/[a-z A-z]/g, '')
+                  answer: e.target.value.replace(/[^0-9.-]/g, '')
                 })}
                 style={{
                   ...numericInputStyle,
@@ -776,7 +829,7 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
                       style={inputStyle}
                       disabled={!option.image}
                     />
-                    <span>{labelTypes[labelTypes].getLabel(i)}.</span>
+                    <span>{getOptionLabel(i)}.</span>
                     <ImageBox
                       image={option.image}
                       onPaste={(e) => handleImage(e, (image) => {
@@ -810,6 +863,10 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
 
   return (
     <div style={questionContainerStyle}>
+      {!isSubQuestion && (
+        <QuestionTypeSelector  isConverted={question.isConvertedFromParagraph}  value={question.type} onChange={handleTypeChange} />
+      )}
+      
       <h4>Question {index + 1}:</h4>
       <ProgressBar />
       {question.type !== 'Paragraph' && (
@@ -843,7 +900,7 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
         <label><b>Question Reference URL: </b></label>
         <div
           style={{ position: 'relative' }}
-          title={!isValid ? "Complete all images first" : ""}
+          title={!isValid ? "Complete all images and Answer first" : ""}
         >
           <input
             type="url"
@@ -887,7 +944,7 @@ const QuestionRenderer = ({ question, onChange, index, containerRef, labelType }
     </div>
   );
 };
-const QuestionTypeSelector = ({ value, onChange }) => (
+const QuestionTypeSelector = ({ value, onChange, isConverted }) => (
   <select
     value={value}
     onChange={(e) => onChange(e.target.value)}
@@ -899,14 +956,14 @@ const QuestionTypeSelector = ({ value, onChange }) => (
     }}
   >
     <option value="MCQ">Multiple Choice (MCQ)</option>
-    <option value="MSQ">Multiple Select (MSQ)</option>
-    <option value="NAT">Numerical Answer (NAT)</option>
-    <option value="TF">True/False</option>
+    {isConverted && <option value="Paragraph">Paragraph</option>}
   </select>
-);
-const QuestionUploadForm = () => {
+); 
 
-  const [labelType, setLabelType] = useState('letters'); // Ensure this line is present
+const QuestionUploadForm = ({onClose,style}) => {
+ const formatedQuestionRef=useRef([])
+ const formattedParagraphQuestion=useRef([])
+  const [labelType, setLabelType] = useState('letters'); 
   const [editingIndex, setEditingIndex] = useState(null);
   const questionRefs = useRef([]);
   const containerRef = useRef(null);
@@ -915,6 +972,8 @@ const QuestionUploadForm = () => {
   const [questions, setQuestions] = useState([]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewDocument, setPreviewDocument] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [numQuestions, setNumQuestions] = useState({});
   const handleExamTypeChange = (e) => {
     const newExamType = e.target.value;
     setExamType(newExamType);
@@ -929,261 +988,409 @@ const QuestionUploadForm = () => {
       setQuestions(generateFormFields(examType, newSectionOrSubject));
     }, 0);
   };
-
+  const validateAndUpdateQuestions = (questions) => {
+    let totalUserAddedEnglishProficiencyQuestions = 0;
+    let totalUserAddedExtraQuestions = 0;
+    const limits = {
+      EnglishProficiency: 30,
+      ExtraQuestions: 3,
+    };
+    const validQuestions = [];
+    for (const question of questions) {
+      if (question.section === "English Proficiency && Logical Reasoning") {
+        const questionCount = 1 + (question.questions?.length || 0);
+        if (totalUserAddedEnglishProficiencyQuestions + questionCount <= limits.EnglishProficiency) {
+          totalUserAddedEnglishProficiencyQuestions += questionCount;
+          validQuestions.push(question);
+        }
+      } else if (question.section.startsWith("Extra Question")) {
+        const questionCount = 1 + (question.questions?.length || 0);
+        if (totalUserAddedExtraQuestions + questionCount <= limits.ExtraQuestions) {
+          totalUserAddedExtraQuestions += questionCount;
+          validQuestions.push(question);
+        }
+      } else {
+        validQuestions.push(question);
+      }
+    }
+    return validQuestions;
+  };
+  
   const handleQuestionChange = (index, updatedQuestion) => {
     const newQuestions = [...questions];
     newQuestions[index] = updatedQuestion;
-    setQuestions(newQuestions);
+    let englishCount = 0;
+    let extraCount = 0;
+    const limitEnglish = 30;
+    const limitExtra = 3;
+    const validQuestions = newQuestions.filter(question => {
+      if (question.section === "English Proficiency && Logical Reasoning") {
+        const count = question.type === 'Paragraph' ? (question.questions?.length || 0) : 1;
+        if (englishCount + count > limitEnglish) return false;
+        englishCount += count;
+        return true;
+      }
+      if (question.section.startsWith("Extra Question")) {
+        const count = question.type === 'Paragraph' ? (question.questions?.length || 0) : 1;
+        if (extraCount + count > limitExtra) return false;
+        extraCount += count;
+        return true;
+      }
+      return true;
+    });
+    if (validQuestions.length !== newQuestions.length) {
+      alert(`Question limits exceeded! Max 30 for English, 3 for Extra Questions.`);
+      setQuestions(validQuestions);
+    } else {
+      setQuestions(newQuestions);
+    }
   };
+
+  const handleDownloadDocument = async () => {
+    try {
+      if (!previewDocument) {
+        throw new Error('No document to download');
+      }
+
+      const blob = await Packer.toBlob(previewDocument);
+      saveAs(blob, "exam_document.docx");
+      
+      // Optional: Clear form after download
+      setExamType("");
+      setSectionOrSubject("");
+      setQuestions([]);
+      setEditingIndex(null);
+    } catch (error) {
+      console.error("Download error:", error);
+      alert("Failed to generate document");
+    }
+  };
+ 
   useLayoutEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
     }
   }, [sectionOrSubject]);
+ 
+
+  const handleSubmittoBackend = async () => {
+    const formattedQuestions = formatedQuestionRef.current; 
+  
+    console.log("Formatted Questions for Backend:", formattedQuestions);
+  
+    try {
+      const response = await axios.post(`${BASE_URL}/DocumentUpload/testuploadformat`, formattedQuestions, {
+        headers: {
+          'Content-Type': 'application/json', 
+        },
+       });
+  
+      console.log('Response from server:', response.data);
+       alert(response.data.message); 
+   } catch (error) {
+       console.error('Error submitting to backend:', error);
+       alert('Failed to submit data to the server');
+     }
+  };
   const handlePreview = async () => {
     const getMarks = () => {
-      switch (examType) {
-        case "BITSAT": return { positive: "3", negative: "1" };
-        default: return { positive: "4", negative: "1" };
-      }
+        switch (examType) {
+            case "BITSAT": return { positive: "3", negative: "1" };
+            default: return { positive: "4", negative: "1" };
+        }
     };
 
-    // Add label type handling
-    const getOptionLabel = (index) => {
-      switch (labelType) {
-        case 'roman':
-          return ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][index] || (index + 1).toString();
-        case 'numbers':
-          return (index + 1).toString();
-        case 'uppercase':
-          return String.fromCharCode(65 + index);
-        default: // letters
-          return String.fromCharCode(97 + index);
-      }
+    const validateImageData = (imageData) => {
+        if (!imageData || typeof imageData !== 'string') return false;
+        const parts = imageData.split(',');
+        return parts.length === 2 && parts[0].startsWith('data:image/') && parts[1].length > 0;
     };
 
-    const processImage = async (imageData, maxWidth, maxHeight) => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.src = imageData;
-        img.onload = () => {
-          const ratio = Math.min(
-            maxWidth / img.naturalWidth,
-            maxHeight / img.naturalHeight
-          );
-          resolve({
-            width: img.naturalWidth * ratio,
-            height: img.naturalHeight * ratio
-          });
-        };
-      });
+    const processImageDimensions = async (imageData) => {
+        try {
+            if (!validateImageData(imageData)) return { width: 100, height: 100 };
+
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = imageData;
+                img.onload = () => resolve({
+                    width: Math.max(img.naturalWidth, 100),
+                    height: Math.max(img.naturalHeight, 100)
+                });
+                img.onerror = () => resolve({ width: 100, height: 100 });
+            });
+        } catch (error) {
+            console.error('Image processing error:', error);
+            return { width: 100, height: 100 };
+        }
+    };
+
+    const createImageComponent = async (imageData) => {
+        try {
+            if (!validateImageData(imageData)) {
+                console.log('Invalid image data:', imageData);
+                return null;
+            }
+
+            const dimensions = await processImageDimensions(imageData);
+            const [header, data] = imageData.split(',');
+
+            return new ImageRun({
+                data: data,
+                width: dimensions.width * 15,
+                height: dimensions.height * 15,
+                transformation: {
+                    width: dimensions.width,
+                    height: dimensions.height,
+                }
+            });
+        } catch (error) {
+            console.error('Image component creation failed:', error);
+            return null;
+        }
     };
 
     try {
-      const { positive, negative } = getMarks();
-      const docSections = [{
-        properties: {
-          page: {
-            margin: { top: 100, right: 100, bottom: 100, left: 100 }
-          }
-        },
-        children: []
-      }];
+        const { positive, negative } = getMarks();
+        const docSections = [{
+            properties: { page: { margin: { top: 100, right: 100, bottom: 100, left: 100 } } },
+            children: []
+        }];
 
-      for (const [index, question] of questions.entries()) {
-        const questionContent = [];
+        const formattedQuestions = [];
+        let globalSortId = 1; // Global sort ID for all questions
+        let paragraphIdCounter = 0; // Counter for paragraph numbers
 
-        if (question.type === 'Paragraph') {
-          questionContent.push(
-            new Paragraph({
-              children: [new TextRun({ text: `[PRG] Paragraph ${index + 1}`, bold: true })]
-            }),
-            new Paragraph(`[sortid]: ${index + 1}`),
-            new Paragraph(`[qType]: CTQ`),
-            new Paragraph(`[Marks]: [+${positive}, -${negative}]`)
-          );
+        for (const question of questions) {
+            const questionContent = [];
 
-          if (question.paragraphImage) {
-            const transform = await processImage(question.paragraphImage, 600, 900);
-            questionContent.push(
-              new Paragraph({
-                children: [
-                  new ImageRun({
-                    data: question.paragraphImage.split(",")[1],
-                    transformation: transform
-                  })
-                ]
-              })
-            );
-          }
+            if (question.type === 'Paragraph') {
+                paragraphIdCounter++; // Increment paragraph number for each paragraph question
+                const currentParagraphId = paragraphIdCounter;
+                const formattedCTQ = {
+                    type: question.isConverted ? 'MCQ4' : 'CTQ', // Set type based on conversion
+                    paragraphId: currentParagraphId.toString(),
+                    paragraphImage: question.paragraphImage,
+                    Questions: [], // Changed from subQuestions to Questions
+                    Marks: `${positive}, ${negative}`
+                };
 
-          if (question.questions) {
-            for (const [subIndex, subQuestion] of question.questions.entries()) {
-              questionContent.push(
-                new Paragraph({
-                  children: [new TextRun({ text: `[PQ] Sub-Question ${subIndex + 1}`, bold: true })]
-                }),
-                new Paragraph(`[sortid]: ${index + 1}.${subIndex + 1}`),
-                new Paragraph(`[qType]: ${subQuestion.type}`),
-                new Paragraph(`[Marks]: [+${positive}, -${negative}]`)
-              );
-
-              if (subQuestion.questionImage) {
-                const transform = await processImage(subQuestion.questionImage, 600, 900);
-                questionContent.push(
-                  new Paragraph({
-                    children: [
-                      new ImageRun({
-                        data: subQuestion.questionImage.split(",")[1],
-                        transformation: transform
-                      })
-                    ]
-                  })
-                );
-              }
-
-              if (subQuestion.options) {
-                questionContent.push(new Paragraph("Options:"));
-                await Promise.all(subQuestion.options.map(async (option, optIndex) => {
-                  const label = getOptionLabel(optIndex);
-                  const optionElements = [
-                    new TextRun({
-                      text: `(${label}) `, // Changed here
-                      bold: true
-                    })
-                  ];
-
-                  if (option.text) {
-                    optionElements.push(new TextRun(option.text + " "));
-                  }
-
-                  if (option.image) {
-                    const transform = await processImage(option.image, 200, 150);
-                    optionElements.push(
-                      new ImageRun({
-                        data: option.image.split(",")[1],
-                        transformation: transform
-                      })
-                    );
-                  }
-
-                  questionContent.push(
-                    new Paragraph({
-                      children: optionElements,
-                      spacing: { after: 200 }
-                    })
-                  );
+                questionContent.push(new Paragraph({
+                    children: [new TextRun({ text: `[PRG ${currentParagraphId}] `, bold: true })]
                 }));
-              }
 
-              questionContent.push(
-                new Paragraph(`[ans]: ${subQuestion.answer}`),
-                new Paragraph(`[vsoln]: ${subQuestion.url}`),
-                new Paragraph("")
-              );
-            }
-          }
-        } else {
-          questionContent.push(
-            new Paragraph({
-              children: [new TextRun({ text: `[Q] Question ${index + 1}`, bold: true })]
-            }),
-            new Paragraph(`[sortid]: ${index + 1}`),
-            new Paragraph(`[qType]: ${question.type}`),
-            new Paragraph(`[Marks]: [+${positive}, -${negative}]`)
-          );
+                if (question.paragraphImage) {
+                    const imageComponent = await createImageComponent(question.paragraphImage);
+                    if (imageComponent) {
+                        questionContent.push(new Paragraph({ children: [imageComponent] }));
+                    } else {
+                        questionContent.push(new Paragraph('(Paragraph image failed to load)'));
+                    }
+                }
 
-          if (question.questionImage) {
-            const transform = await processImage(question.questionImage, 600, 900);
-            questionContent.push(
-              new Paragraph({
-                children: [
-                  new ImageRun({
-                    data: question.questionImage.split(",")[1],
-                    transformation: transform
-                  })
-                ]
-              })
-            );
-          }
+                let subQuestionCounter = 1; // Reset sub-question counter for each paragraph
 
-          if (question.options) {
-            questionContent.push(new Paragraph("Options:"));
-            await Promise.all(question.options.map(async (option, optIndex) => {
-              const label = getOptionLabel(optIndex); // Changed here
-              const optionElements = [
-                new TextRun({
-                  text: `(${label}) `, // Changed here
-                  bold: true
-                })
-              ];
+                if (question.questions) {
+                    for (const subQuestion of question.questions) {
+                        const currentSortId = globalSortId++; // Increment sort ID for each sub-question
 
-              if (option.text) {
-                optionElements.push(new TextRun(option.text + " "));
-              }
+                        questionContent.push(new Paragraph({
+                            children: [new TextRun({ text: `[Q] `, bold: true })]
+                        }));
 
-              if (option.image) {
-                const transform = await processImage(option.image, 200, 150);
-                optionElements.push(
-                  new ImageRun({
-                    data: option.image.split(",")[1],
-                    transformation: transform
-                  })
+                        if (subQuestion.questionImage) {
+                            const imageComponent = await createImageComponent(subQuestion.questionImage);
+                            if (imageComponent) {
+                                questionContent.push(new Paragraph({ children: [imageComponent] }));
+                            } else {
+                                questionContent.push(new Paragraph('(Question image failed to load)'));
+                            }
+                        }
+
+                        if (subQuestion.options) {
+                            for (const [optIndex, option] of subQuestion.options.entries()) {
+                                if (option.image) {
+                                    const imageComponent = await createImageComponent(option.image);
+                                    if (imageComponent) {
+                                        questionContent.push(new Paragraph({
+                                            children: [
+                                                new TextRun(`(${String.fromCharCode(97 + optIndex)}) `),
+                                                imageComponent
+                                            ],
+                                            spacing: { after: 200 }
+                                        }));
+                                    } else {
+                                        questionContent.push(new Paragraph({
+                                            children: [
+                                                new TextRun(`(${String.fromCharCode(97 + optIndex)}) `),
+                                                new TextRun('(Option image failed to load)')
+                                            ],
+                                            spacing: { after: 200 }
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+
+                        questionContent.push(
+                            new Paragraph(`[qtype] ${formattedCTQ.type}`), // Use the determined type
+                            new Paragraph(`[ans] ${subQuestion.answer?.toString().toLowerCase() || ''}`),
+                            new Paragraph(`[Marks] ${positive}, ${negative}`),
+                            new Paragraph(`[sortid] ${currentSortId}`),
+                            new Paragraph(`[PQNo] ${subQuestionCounter}`), // Use sub-question counter
+                            new Paragraph("")
+                        );
+
+                        // Check for solution image for each sub-question
+                        if (subQuestion.solutionImage) {
+                            const solutionImageComponent = await createImageComponent(subQuestion.solutionImage);
+                            if (solutionImageComponent) {
+                                questionContent.push(new Paragraph({
+                                    children: [new TextRun("[soln] "), solutionImageComponent]
+                                }));
+                            } else {
+                                questionContent.push(new Paragraph({
+                                    children: [new TextRun("[soln] ")]
+                                }));
+                            }
+                        }
+
+                        // Changed from subQuestions to Questions
+                        formattedCTQ.Questions.push({
+                            questionImage: subQuestion.questionImage,
+                            options: subQuestion.options?.map(opt => opt.image) || [],
+                            solutionImage: subQuestion.solutionImage,
+                            answer: subQuestion.answer,
+                            Marks: `${positive}, ${negative}`,
+                            qtype: formattedCTQ.type, // Use the determined type
+                            sortid: currentSortId.toString(),
+                            paragraphId: subQuestionCounter.toString() // Use sub-question counter
+                        });
+
+                        subQuestionCounter++; // Increment sub-question counter
+                    }
+                }
+
+                formattedQuestions.push(formattedCTQ);
+
+            } else {
+                const currentSortId = globalSortId++;
+                const isConvertedCTQ = question.isConvertedParagraph;
+
+                questionContent.push(new Paragraph({
+                    children: [new TextRun({ text: `[Q] `, bold: true })]
+                }));
+
+                if (question.questionImage) {
+                    const imageComponent = await createImageComponent(question.questionImage);
+                    if (imageComponent) {
+                        questionContent.push(new Paragraph({ children: [imageComponent] }));
+                    } else {
+                        questionContent.push(new Paragraph('(Question image failed to load)'));
+                    }
+                }
+
+                if (question.options) {
+                    for (const [optIndex, option] of question.options.entries()) {
+                        if (option.image) {
+                            const imageComponent = await createImageComponent(option.image);
+                            if (imageComponent) {
+                                questionContent.push(new Paragraph({
+                                    children: [
+                                        new TextRun(`(${String.fromCharCode(97 + optIndex)}) `),
+                                        imageComponent
+                                    ],
+                                    spacing: { after: 200 }
+                                }));
+                            } else {
+                                questionContent.push(new Paragraph({
+                                    children: [
+                                        new TextRun(`(${String.fromCharCode(97 + optIndex)}) `),
+                                        new TextRun('(Option image failed to load)')
+                                    ],
+                                    spacing: { after: 200 }
+                                }));
+                            }
+                        }
+                    }
+                }
+
+                questionContent.push(
+                    new Paragraph(`[qtype] MCQ4`),
+                    new Paragraph(`[ans] ${question.answer?.toString().toLowerCase() || ''}`),
+                    new Paragraph(`[Marks] ${positive}, ${negative}`),
+                    new Paragraph(`[sortid] ${currentSortId}`),
+                    new Paragraph("")
                 );
-              }
 
-              questionContent.push(
-                new Paragraph({
-                  children: optionElements,
-                  spacing: { after: 200 }
-                })
-              );
-            }));
-          }
+                if (question.solutionImage) {
+                    const imageComponent = await createImageComponent(question.solutionImage);
+                    if (imageComponent) {
+                        questionContent.push(new Paragraph({
+                            children: [new TextRun("[soln] "), imageComponent]
+                        }));
+                    } else {
+                        questionContent.push(new Paragraph({
+                            children: [new TextRun("[soln] ")]
+                        }));
+                    }
+                }
 
-          questionContent.push(
-            new Paragraph(`[ans]: ${question.answer}`),
-            new Paragraph(`[vsoln]: ${question.url}`),
-            new Paragraph("")
-          );
+                formattedQuestions.push({
+                    questionImage: question.questionImage,
+                    options: question.options?.map(opt => opt.image) || [],
+                    solutionImage: question.solutionImage,
+                    answer: question.answer,
+                    Marks: `${positive}, ${negative}`,
+                    qtype: isConvertedCTQ ? 'CTQ' : 'MCQ4',
+                    sortid: currentSortId.toString(),
+                  
+                });
+            }
+
+            docSections[0].children.push(...questionContent);
         }
 
-        docSections[0].children.push(...questionContent);
-      }
-
-      docSections[0].children.push(
-        new Paragraph({
-          text: "[END OF DOCUMENT]",
-          bold: true,
-          pageBreakBefore: true
-        })
-      );
-
-      const doc = new Document({ sections: docSections });
-      setPreviewDocument(doc);
-      setIsPreviewOpen(true);
+        formatedQuestionRef.current = formattedQuestions;
+        const doc = new Document({ sections: docSections });
+        setPreviewDocument(doc);
+        setIsPreviewOpen(true);
     } catch (error) {
-      console.error("Error generating preview:", error);
-      alert("Error generating preview. Check console for details.");
+        console.error("Error generating preview:", error);
+        alert("Error generating preview. Check console for details.");
     }
-  };
+};
   return (
-
     <div style={{
-
-      maxWidth: "1200px",
-
-      margin: "40px auto",
-
-      padding: "30px",
-
+      position: 'relative',
       backgroundColor: "white",
-
       borderRadius: "12px",
-
-      boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-
+      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+      display: 'flex',
+      flexDirection: 'column',
+      width: '95%',
+      maxWidth: '1000px', 
+      margin: "40px auto",
+      padding: "30px",
+      maxHeight: '90vh', 
+    
     }}>
+       <button
+      onClick={onClose}
+      style={{
+        position: 'absolute',
+        top: '15px',
+        right: '20px',
+        background: 'none',
+        border: 'none',
+        fontSize: '24px',
+        cursor: 'pointer',
+        color: '#666',
+        zIndex: 1000
+      }}
+    >
+      ×
+    </button>
 
       <h1 style={{
 
@@ -1193,7 +1400,8 @@ const QuestionUploadForm = () => {
 
         marginBottom: "30px",
 
-        fontSize: "2.2rem"
+        fontSize: "2.2rem",
+        flexShrink: 0 
 
       }}>
 
@@ -1211,7 +1419,8 @@ const QuestionUploadForm = () => {
 
         gap: "20px",
 
-        marginBottom: "30px"
+        marginBottom: "30px",
+        flexShrink: 0,
 
       }}>
 
@@ -1322,10 +1531,12 @@ const QuestionUploadForm = () => {
           style={{
             maxHeight: "70vh",
             overflowY: "auto",
-            paddingRight: "15px",
-            marginBottom: "30px",
-            scrollBehavior: "smooth"
+            scrollbarWidth: 'none', 
+            msOverflowStyle: 'none', 
+            '&::-webkit-scrollbar': { 
+              display: 'none'
           }}
+        }
         >
           <div style={{
             marginBottom: "20px",
@@ -1356,7 +1567,6 @@ const QuestionUploadForm = () => {
             </div>
           </div>
           {questions.reduce((acc, question, index) => {
-            // Section header logic
             if (index === 0 || question.section !== questions[index - 1].section) {
               acc.push(
                 <div key={`header-${question.section}`} style={{
@@ -1384,8 +1594,6 @@ const QuestionUploadForm = () => {
                 </div>
               );
             }
-
-            // Add the question with blur and overlay
             acc.push(
               <div
                 key={index}
@@ -1400,12 +1608,15 @@ const QuestionUploadForm = () => {
                 {/* Question component */}
                 {question.type === 'Paragraph' ? (
                   <ParagraphQuestion
-                    question={question}
-                    onChange={(updatedQuestion) => handleQuestionChange(index, updatedQuestion)}
-                    index={index}
-                    containerRef={containerRef}
-                    labelType={labelType}
-                  />
+                  key={index}
+                  question={question}
+                  onChange={(updatedQuestion) => handleQuestionChange(index, updatedQuestion)}
+                  index={index}
+                  containerRef={containerRef}
+                  labelType={labelType}
+                  numQuestions={numQuestions[index] || 1}
+                  setNumQuestions={(count) => setNumQuestions(prev => ({ ...prev, [index]: count }))} 
+              />
                 ) : (
                   <QuestionRenderer
                     question={question}
@@ -1415,23 +1626,21 @@ const QuestionUploadForm = () => {
                     labelType={labelType}
                   />
                 )}
-
-                {/* Edit overlay */}
                 {editingIndex === index && (
                   <div style={{
                     position: 'absolute',
-                    top: '10px', // Position the button at the top
+                    top: '10px', 
                     right: '10px',
                     zIndex: 1000,
-                    backgroundColor: 'rgba(255, 255, 255, 0.8)', // Optional: add a background to the button
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)', 
                     padding: '10px',
                     borderRadius: '4px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
                   }}>
                     <button
                       onClick={() => {
-                        setEditingIndex(null); // Exit edit mode
-                        handlePreview(); // Regenerate document with changes
+                        setEditingIndex(null); 
+                        handlePreview(); 
                       }}
                       style={{
                         padding: "10px 20px",
@@ -1457,40 +1666,42 @@ const QuestionUploadForm = () => {
 
       {questions.length > 0 && (
 
-        <div style={{ textAlign: "center" }}>
+        <div style={{textAlign: "center",
+          flexShrink: 0, 
+          paddingTop: '20px' }}>
 
-          <button
-
+<button
             onClick={handlePreview}
-
             style={{
-
               padding: "14px 28px",
-
               fontSize: "16px",
-
               backgroundColor: "#4CAF50",
-
               color: "white",
-
               border: "none",
-
               borderRadius: "6px",
-
               cursor: "pointer",
-
-              transition: "background-color 0.3s",
-
-              fontWeight: "500"
-
+              marginRight: "10px"
             }}
-
           >
-
             Preview Exam Document
-
           </button>
-
+          <button
+          onClick={handleSubmittoBackend}
+            disabled={isSubmitting}
+            style={{
+              padding: "14px 28px",
+              fontSize: "16px",
+              backgroundColor: "#3498db",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+              marginRight: "10px",
+              opacity: isSubmitting ? 0.7 : 1
+            }}
+          >
+            {isSubmitting ? 'Saving...' : 'Save to Server'}
+          </button>
         </div>
 
       )}
@@ -1505,9 +1716,8 @@ const QuestionUploadForm = () => {
                 border: "1px solid #eee",
                 borderRadius: "8px",
                 backgroundColor: "#f9f9f9",
-                position: 'relative' // Added for positioning the button
+                position: 'relative' 
               }}>
-                {/* Add Edit Button Here */}
                 <button
                   onClick={() => {
                     setIsPreviewOpen(false);
@@ -1679,28 +1889,17 @@ const QuestionUploadForm = () => {
             </button>
 
             <button
-              onClick={async () => {
-                const blob = await Packer.toBlob(previewDocument);
-                saveAs(blob, "exam_document.docx");
-                setIsPreviewOpen(false);
-                setExamType("");
-                setSectionOrSubject("");
-                setQuestions([]);
-                setEditingIndex(null);
-              }}
+              onClick={handleDownloadDocument}
               style={{
                 padding: "10px 20px",
                 backgroundColor: "#2ecc71",
                 color: "white",
                 border: "none",
                 borderRadius: "4px",
-                cursor: "pointer",
-                fontSize: "16px",
-                fontWeight: "500",
-                transition: "background-color 0.3s"
+                cursor: "pointer"
               }}
             >
-              Confirm & Download
+              Download Document
             </button>
           </div>
         </div>
